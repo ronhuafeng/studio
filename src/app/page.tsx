@@ -32,7 +32,7 @@ const nodeHeight = 120 + 20;
 const getLayoutedElements = (nodes: RFNode[], edges: RFEdge[], direction = "TB") => {
   const dagreGraphInstance = new Dagre.graphlib.Graph();
   dagreGraphInstance.setDefaultEdgeLabel(() => ({}));
-  dagreGraphInstance.setGraph({ rankdir: direction, nodesep: 50, ranksep: 70 });
+  dagreGraphInstance.setGraph({ rankdir: direction, nodesep: 80, ranksep: 120 }); // Increased spacing
 
   nodes.forEach((node) => {
     dagreGraphInstance.setNode(node.id, { width: nodeWidth, height: nodeHeight });
@@ -92,7 +92,7 @@ export default function FmeaVisualizerPage() {
         setFailureRfNodes((nds) => applyNodeChanges(changes, nds));
       }
     },
-    [activeTab, setMainRfNodes, setFeatureRfNodes, setFailureRfNodes]
+    [activeTab] 
   );
 
   const onEdgesChange: OnEdgesChange = useCallback(
@@ -105,7 +105,7 @@ export default function FmeaVisualizerPage() {
         setFailureRfEdges((eds) => applyEdgeChanges(changes, eds));
       }
     },
-    [activeTab, setMainRfEdges, setFeatureRfEdges, setFailureRfEdges]
+    [activeTab] 
   );
 
   const handleJsonSubmit = useCallback((json: string, type: ApiResponseType) => {
@@ -139,7 +139,6 @@ export default function FmeaVisualizerPage() {
         position: { x: Math.random() * 400, y: Math.random() * 400 },
       }));
 
-      // Main Graph (Parent-Child)
       const parentChildEdges: RFEdge[] = allApiNodes
         .filter(node => node.parentId !== -1 && allApiNodes.find(n => n.uuid === node.parentId))
         .map(node => ({
@@ -154,7 +153,7 @@ export default function FmeaVisualizerPage() {
       
       if (allTransformedNodes.length > 0) {
         const { nodes: layoutedMainNodes, edges: layoutedMainEdges } = getLayoutedElements(
-            [...allTransformedNodes], // Use a copy for layout
+            [...allTransformedNodes], 
             parentChildEdges
         );
         setMainRfNodes(layoutedMainNodes);
@@ -162,7 +161,6 @@ export default function FmeaVisualizerPage() {
       }
 
 
-      // Feature Net Graph
       const featureNetLinks: NetworkLink[] = (parsedData as any).featureNet || [];
       const featureNetApiEdges: RFEdge[] = featureNetLinks
         .filter(link => allApiNodes.find(n => n.uuid === link.from) && allApiNodes.find(n => n.uuid === link.to))
@@ -185,7 +183,7 @@ export default function FmeaVisualizerPage() {
         const featureGraphApiNodes = allTransformedNodes.filter(node => featureNodeIds.has(node.id));
          if (featureGraphApiNodes.length > 0) {
             const { nodes: layoutedFeatureNodes, edges: layoutedFeatureEdges } = getLayoutedElements(
-                [...featureGraphApiNodes], // Use a copy
+                [...featureGraphApiNodes], 
                 featureNetApiEdges
             );
             setFeatureRfNodes(layoutedFeatureNodes);
@@ -193,7 +191,6 @@ export default function FmeaVisualizerPage() {
         }
       }
       
-      // Failure Net Graph
       const failureNetLinks: NetworkLink[] = (parsedData as any).failureNet || [];
       const failureNetApiEdges: RFEdge[] = failureNetLinks
         .filter(link => allApiNodes.find(n => n.uuid === link.from) && allApiNodes.find(n => n.uuid === link.to))
@@ -216,7 +213,7 @@ export default function FmeaVisualizerPage() {
         const failureGraphApiNodes = allTransformedNodes.filter(node => failureNodeIds.has(node.id));
         if (failureGraphApiNodes.length > 0) {
             const { nodes: layoutedFailureNodes, edges: layoutedFailureEdges } = getLayoutedElements(
-                [...failureGraphApiNodes], // Use a copy
+                [...failureGraphApiNodes], 
                 failureNetApiEdges
             );
             setFailureRfNodes(layoutedFailureNodes);
@@ -224,8 +221,8 @@ export default function FmeaVisualizerPage() {
         }
       }
       
-      setActiveTab("main"); // Default to main graph view
-      setNeedsLayout(true); // Layout for the initial active graph
+      setActiveTab("main"); 
+      setNeedsLayout(true); 
       setInitialLayoutAppliedForTabs(prev => new Set(prev).add("main"));
 
       toast({ title: "Success", description: "FMEA data parsed and visualized." });
@@ -283,6 +280,8 @@ export default function FmeaVisualizerPage() {
             markerEnd: { type: 'arrowclosed', color: 'hsl(var(--foreground)/0.5)' },
           });
         }
+        // Potentially trigger re-layout for main graph if parentId changed significantly
+        // For now, only edge update is handled here. Layout button can be used.
         return newEdges;
       });
     }
@@ -317,21 +316,36 @@ export default function FmeaVisualizerPage() {
       const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodesToLayout, edgesToLayout);
       setNodesFn([...layoutedNodes]); 
       setEdgesFn([...layoutedEdges]);
-      setInitialLayoutAppliedForTabs(prev => new Set(prev).add(activeTab));
-      setNeedsLayout(false); // After manual layout, reset needsLayout
+      // setInitialLayoutAppliedForTabs(prev => new Set(prev).add(activeTab)); // Keep this if we want to mark it as "initially" laid out
+      setNeedsLayout(true); // Set needsLayout to true to trigger fitView on next render
       toast({ title: "Layout Applied", description: `Graph layout for ${activeTab} view has been recalculated.` });
     } else {
       toast({ variant: "destructive", title: "Layout Error", description: `No data to layout for ${activeTab} view.` });
     }
   }, [activeTab, mainRfNodes, mainRfEdges, featureRfNodes, featureRfEdges, failureRfNodes, failureRfEdges, toast]);
+  
+  useEffect(() => {
+    // This effect ensures fitView is triggered when needsLayout becomes true
+    // And then resets needsLayout to prevent repeated fitView calls on minor changes.
+    if (needsLayout) {
+      // The actual fitting is done by the fitView prop in GraphViewerWrapper
+      // We just need to reset needsLayout after the render cycle where fitView is true.
+      const timer = setTimeout(() => setNeedsLayout(false), 0);
+      return () => clearTimeout(timer);
+    }
+  }, [needsLayout, activeTab]);
+
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    setSelectedNode(null); // Clear selection when switching tabs
+    setSelectedNode(null); 
     if (!initialLayoutAppliedForTabs.has(value)) {
+      // If tab hasn't been "initially" laid out (e.g. data just loaded), mark for layout + fitView
       setNeedsLayout(true);
       setInitialLayoutAppliedForTabs(prev => new Set(prev).add(value));
     } else {
+      // If tab was already visited and laid out, don't force fitView again,
+      // unless user explicitly hits re-layout button.
       setNeedsLayout(false);
     }
   };
@@ -439,3 +453,6 @@ export default function FmeaVisualizerPage() {
     </div>
   );
 }
+
+
+    
