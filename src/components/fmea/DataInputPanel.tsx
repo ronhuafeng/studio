@@ -6,8 +6,12 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
+import { Loader2 } from "lucide-react";
 
 interface DataInputPanelProps {
   onJsonSubmit: (json: string, type: ApiResponseType) => void;
@@ -78,12 +82,82 @@ const exampleJsonMap: Record<ApiResponseType, string> = {
   pfmea: examplePfmeaJson,
 };
 
+const defaultApiBaseUrl = 'http://121.43.197.144:5000/api/fmea/analysis/';
+
+const defaultApiPayloads: Record<ApiResponseType, string> = {
+  requirements: `{
+  "sessionId": "session_ghia17289_requirements_focus",
+  "nodes": [
+    {
+      "uuid": 101
+    }
+  ],
+  "documentIds": [
+    "http://www.example.doc_std_gbt20234_abc"
+  ],
+  "modifiedStructure": {
+    "nodes": [
+      {
+        "uuid": 100,
+        "parentId": -1,
+        "nodeType": "system",
+        "description": "调整后的机械安全系统",
+        "extra": {
+          "projectCode": "XYZ-Mod"
+        }
+      },
+      {
+        "uuid": 101,
+        "parentId": 100,
+        "nodeType": "subsystem",
+        "description": "调整后的挤压防护子系统",
+        "extra": {}
+      },
+      {
+        "uuid": 102,
+        "parentId": 101,
+        "nodeType": "component",
+        "description": "定制化安全间距挡板",
+        "extra": {}
+      }
+    ]
+  },
+  "scope": "structure_only",
+  "extraPayload": "{\\"analysisScope\\": \\"critical_safety_reqs_only\\"}"
+}`,
+  dfmea: `{
+  "sessionId": "session_dfmea_example",
+  "nodes": [],
+  "modifiedStructure": { "nodes": [] },
+  "scope": "full_dfmea",
+  "extraPayload": "{}"
+}`,
+  pfmea: `{
+  "sessionId": "session_pfmea_example",
+  "processSteps": [],
+  "modifiedStructure": { "nodes": [] },
+  "scope": "full_pfmea",
+  "extraPayload": "{}"
+}`,
+};
+
+
 export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) {
-  const [apiType, setApiType] = useState<ApiResponseType>("dfmea");
+  const [apiType, setApiType] = useState<ApiResponseType>("requirements");
   const [jsonInput, setJsonInput] = useState<string>(exampleJsonMap[apiType]);
+  
+  const [apiUrl, setApiUrl] = useState<string>(`${defaultApiBaseUrl}${apiType}`);
+  const [apiPayload, setApiPayload] = useState<string>(defaultApiPayloads[apiType]);
+  const [isFetchingApiData, setIsFetchingApiData] = useState<boolean>(false);
+  const [apiFetchError, setApiFetchError] = useState<string | null>(null);
+
+  const { toast } = useToast();
 
   useEffect(() => {
     setJsonInput(exampleJsonMap[apiType]);
+    setApiUrl(`${defaultApiBaseUrl}${apiType}`);
+    setApiPayload(defaultApiPayloads[apiType]);
+    setApiFetchError(null);
   }, [apiType]);
 
   const handleSubmit = () => {
@@ -92,6 +166,65 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
 
   const handleApiTypeChange = (value: string) => {
     setApiType(value as ApiResponseType);
+  };
+
+  const handleFetchFromApi = async () => {
+    setIsFetchingApiData(true);
+    setApiFetchError(null);
+    let parsedPayload;
+
+    try {
+      parsedPayload = JSON.parse(apiPayload);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Payload JSON",
+        description: "The request payload is not valid JSON. Please correct it.",
+      });
+      setIsFetchingApiData(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(parsedPayload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+      }
+
+      const responseDataText = await response.text();
+      try {
+        JSON.parse(responseDataText); // Validate if response is JSON
+        setJsonInput(responseDataText);
+        toast({
+          title: "API Data Fetched",
+          description: "Data successfully retrieved from the API and loaded into the JSON input area.",
+        });
+      } catch (e) {
+        setJsonInput(responseDataText); // Still set it if not JSON, maybe it's an error string
+        toast({
+          variant: "destructive",
+          title: "API Response Not JSON",
+          description: "The API responded, but the data is not valid JSON. It has been loaded as text.",
+        });
+      }
+    } catch (error: any) {
+      setApiFetchError(error.message);
+      toast({
+        variant: "destructive",
+        title: "API Request Error",
+        description: error.message || "An unknown error occurred while fetching data.",
+      });
+    } finally {
+      setIsFetchingApiData(false);
+    }
   };
 
   return (
@@ -105,7 +238,7 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
           <Select
             value={apiType}
             onValueChange={handleApiTypeChange}
-            disabled={disabled}
+            disabled={disabled || isFetchingApiData}
           >
             <SelectTrigger id="apiType">
               <SelectValue placeholder="Select API type" />
@@ -117,22 +250,68 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
             </SelectContent>
           </Select>
         </div>
+        
+        <Separator className="my-6" />
+        
+        <CardDescription>Option 1: Fetch from API</CardDescription>
         <div>
-          <Label htmlFor="jsonInput" className="mb-2 block">Paste FMEA JSON here</Label>
+          <Label htmlFor="apiUrl" className="mb-2 block">API URL</Label>
+          <Input
+            id="apiUrl"
+            value={apiUrl}
+            onChange={(e) => setApiUrl(e.target.value)}
+            placeholder="Enter API endpoint URL"
+            className="font-code"
+            disabled={disabled || isFetchingApiData}
+          />
+        </div>
+        <div>
+          <Label htmlFor="apiPayload" className="mb-2 block">Request Payload (JSON)</Label>
+          <Textarea
+            id="apiPayload"
+            value={apiPayload}
+            onChange={(e) => setApiPayload(e.target.value)}
+            placeholder="Enter JSON payload for the API request"
+            rows={8}
+            className="font-code"
+            disabled={disabled || isFetchingApiData}
+          />
+        </div>
+        <Button 
+          onClick={handleFetchFromApi} 
+          className="w-full" 
+          disabled={disabled || isFetchingApiData}
+        >
+          {isFetchingApiData && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Fetch Data from API
+        </Button>
+        {apiFetchError && <p className="text-sm text-destructive mt-2">{apiFetchError}</p>}
+        
+        <Separator className="my-6" />
+
+        <CardDescription>Option 2: Paste JSON or Use Example</CardDescription>
+        <div>
+          <Label htmlFor="jsonInput" className="mb-2 block">FMEA JSON Data</Label>
           <Textarea
             id="jsonInput"
             value={jsonInput}
             onChange={(e) => setJsonInput(e.target.value)}
-            placeholder="Paste JSON data here..."
+            placeholder="Paste JSON data here, or fetch from API, or use loaded example..."
             rows={15}
             className="font-code"
-            disabled={disabled}
+            disabled={disabled || isFetchingApiData}
           />
         </div>
-        <Button onClick={handleSubmit} className="w-full" disabled={disabled}>
+        <Button 
+          onClick={handleSubmit} 
+          className="w-full" 
+          disabled={disabled || isFetchingApiData || !jsonInput.trim()}
+        >
           Visualize Data
         </Button>
       </CardContent>
     </Card>
   );
 }
+
+    
