@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { ApiResponseType } from "@/types/fmea";
@@ -8,26 +9,32 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface DataInputPanelProps {
-  onJsonSubmit: (json: string, type: ApiResponseType) => void;
-  disabled?: boolean;
-}
-
 const exampleJson = `{
   "nodes": [
-    {
-      "uuid": 1,
-      "parentId": -1,
-      "nodeType": "requirement",
-      "description": "机械设计应符合 GB/T 12265—2021 标准，防止人体部位挤压。",
-      "extra": { "partNo": "GENERIC_MACHINE_001", "partName": "通用机械设备" }
-    }
-  ]
+    { "uuid": 1, "parentId": -1, "nodeType": "requirement", "description": "System must be safe and easy to use." },
+    { "uuid": 2, "parentId": 1, "nodeType": "func", "description": "Provide safety interlock mechanism." },
+    { "uuid": 3, "parentId": 1, "nodeType": "func", "description": "Provide clear user warnings and indicators." },
+    { "uuid": 4, "parentId": 2, "nodeType": "failure", "description": "Interlock fails to engage (open)." },
+    { "uuid": 5, "parentId": 2, "nodeType": "failure", "description": "Interlock engages prematurely (closed)." },
+    { "uuid": 6, "parentId": 3, "nodeType": "cha", "description": "Warning light visibility." }
+  ],
+  "featureNet": [
+    { "from": 2, "to": 3, "type": 1 }
+  ],
+  "failureNet": [
+    { "from": 4, "to": 5, "type": 2 }
+  ],
+  "baseInfo": {
+    "name": "Sample DFMEA Project",
+    "partNo": "XYZ-123",
+    "partName": "Safety Control Module",
+    "evaluationCriteria": "Standard Automotive Safety"
+  }
 }`;
 
 export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) {
   const [jsonInput, setJsonInput] = useState<string>(exampleJson);
-  const [apiType, setApiType] = useState<ApiResponseType>("requirements");
+  const [apiType, setApiType] = useState<ApiResponseType>("dfmea"); // Default to dfmea as example has baseInfo
 
   const handleSubmit = () => {
     onJsonSubmit(jsonInput, apiType);
