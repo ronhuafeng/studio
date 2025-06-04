@@ -82,7 +82,7 @@ const exampleJsonMap: Record<ApiResponseType, string> = {
   pfmea: examplePfmeaJson,
 };
 
-const defaultApiBaseUrl = 'https://121.43.197.144:5000/api/fmea/analysis/';
+const defaultApiBaseUrl = 'https://fmea-api.xixifusi.online/api/fmea/analysis/'; // Updated Base URL
 
 const defaultApiPayloads: Record<ApiResponseType, string> = {
   requirements: `{
@@ -199,6 +199,11 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
 
       if (!response.ok) {
         const errorText = await response.text();
+        // Check for specific CORS or network-related status codes if possible, though response.ok handles general HTTP errors.
+        // A status of 0 often indicates a CORS preflight failure or network error before the server could respond with a typical HTTP status.
+        if (response.status === 0) {
+           throw new Error(`API request failed. This might be due to a CORS policy on the server or a network issue. Status: ${response.status}. Error: ${errorText}`);
+        }
         throw new Error(`API request failed with status ${response.status}: ${errorText}`);
       }
 
@@ -220,10 +225,10 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
       }
     } catch (error: any) {
       let description = error.message || "An unknown error occurred while fetching data.";
-       if (error.message && error.message.toLowerCase().includes('failed to fetch')) {
-        description = `Failed to fetch: ${error.message}. This commonly occurs due to network issues, CORS (Cross-Origin Resource Sharing) policy on the API server, or a Mixed Content error (requesting HTTP from an HTTPS page). Please check your network connection, the API server's HTTPS and CORS configuration, and the browser's developer console (Network tab) for more specific error details.`;
-      } else if (error.message && error.message.toLowerCase().includes('ssl') || error.message.toLowerCase().includes('certificate')) {
-        description = `SSL/TLS Certificate error: ${error.message}. The API server might be using an invalid or self-signed certificate. Ensure the server has a valid HTTPS certificate.`;
+       if (error.message && (error.message.toLowerCase().includes('failed to fetch') || error.message.toLowerCase().includes('networkerror'))) {
+        description = `Failed to fetch: ${error.message}. This commonly occurs due to network issues, or a CORS (Cross-Origin Resource Sharing) policy on the API server. Please check your network connection, ensure the API server at ${apiUrl} is configured to allow requests from your origin, and check the browser's developer console (Network tab) for more specific error details (e.g., preflight OPTIONS request failures).`;
+      } else if (error.message && (error.message.toLowerCase().includes('ssl') || error.message.toLowerCase().includes('certificate'))) {
+        description = `SSL/TLS Certificate error: ${error.message}. The API server at ${apiUrl} might be using an invalid or self-signed certificate. Ensure the server has a valid HTTPS certificate.`;
       }
       
       setApiFetchError(description); 
@@ -238,6 +243,7 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
         payloadAttempted: currentPayloadSnapshot, 
         errorDetails: error,
         errorMessage: error.message,
+        advice: "If this is a CORS issue, the API server needs to be configured with appropriate Access-Control-Allow-Origin headers."
       });
     } finally {
       setIsFetchingApiData(false);
@@ -330,3 +336,4 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
     </Card>
   );
 }
+
