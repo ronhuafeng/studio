@@ -82,7 +82,7 @@ const exampleJsonMap: Record<ApiResponseType, string> = {
   pfmea: examplePfmeaJson,
 };
 
-const defaultApiBaseUrl = 'http://121.43.197.144:5000/api/fmea/analysis/';
+const defaultApiBaseUrl = 'https://121.43.197.144:5000/api/fmea/analysis/';
 
 const defaultApiPayloads: Record<ApiResponseType, string> = {
   requirements: `{
@@ -185,7 +185,7 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
       return;
     }
 
-    let currentPayloadSnapshot = apiPayload; // For logging in case of error
+    let currentPayloadSnapshot = apiPayload; 
 
     try {
       const response = await fetch(apiUrl, {
@@ -194,7 +194,7 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(parsedPayload),
-        mode: 'cors', // Explicitly set mode, though it's the default
+        mode: 'cors', 
       });
 
       if (!response.ok) {
@@ -220,11 +220,13 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
       }
     } catch (error: any) {
       let description = error.message || "An unknown error occurred while fetching data.";
-      if (error.message && error.message.toLowerCase().includes('failed to fetch')) {
-        description = `Failed to fetch: ${error.message}. This commonly occurs due to network issues or CORS (Cross-Origin Resource Sharing) policy on the API server. Please check your network connection and the browser's developer console (Network tab) for more specific error details related to CORS. The API server may need to be configured to allow requests from this origin.`;
+       if (error.message && error.message.toLowerCase().includes('failed to fetch')) {
+        description = `Failed to fetch: ${error.message}. This commonly occurs due to network issues, CORS (Cross-Origin Resource Sharing) policy on the API server, or a Mixed Content error (requesting HTTP from an HTTPS page). Please check your network connection, the API server's HTTPS and CORS configuration, and the browser's developer console (Network tab) for more specific error details.`;
+      } else if (error.message && error.message.toLowerCase().includes('ssl') || error.message.toLowerCase().includes('certificate')) {
+        description = `SSL/TLS Certificate error: ${error.message}. The API server might be using an invalid or self-signed certificate. Ensure the server has a valid HTTPS certificate.`;
       }
       
-      setApiFetchError(description); // Store the more detailed description
+      setApiFetchError(description); 
       
       toast({
         variant: "destructive",
@@ -233,7 +235,7 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
       });
       console.error("API Fetch Error:", {
         url: apiUrl,
-        payloadAttempted: currentPayloadSnapshot, // Log the payload string that was attempted
+        payloadAttempted: currentPayloadSnapshot, 
         errorDetails: error,
         errorMessage: error.message,
       });
