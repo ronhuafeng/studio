@@ -29,33 +29,38 @@ import { Layout, Network, AlertTriangleIcon, ListTree } from "lucide-react";
 const nodeWidth = 256 + 20; 
 const nodeHeight = 120 + 20;
 
-const getLayoutedElements = (nodes: RFNode[], edges: RFEdge[], direction = "TB") => {
+const getLayoutedElements = (initialNodes: RFNode<CustomNodeData>[], initialEdges: RFEdge[], direction = "TB") => {
   const dagreGraphInstance = new Dagre.graphlib.Graph();
   dagreGraphInstance.setDefaultEdgeLabel(() => ({}));
-  dagreGraphInstance.setGraph({ rankdir: direction, nodesep: 80, ranksep: 120 }); // Increased spacing
+  dagreGraphInstance.setGraph({ rankdir: direction, nodesep: 80, ranksep: 120 });
 
-  nodes.forEach((node) => {
+  const layoutableNodes = initialNodes.map(n => ({ ...n })); 
+  const layoutableEdges = initialEdges.map(e => ({ ...e })); 
+
+  layoutableNodes.forEach((node) => {
     dagreGraphInstance.setNode(node.id, { width: nodeWidth, height: nodeHeight });
   });
 
-  edges.forEach((edge) => {
+  layoutableEdges.forEach((edge) => {
     dagreGraphInstance.setEdge(edge.source, edge.target);
   });
 
   Dagre.layout(dagreGraphInstance);
 
-  nodes.forEach((node) => {
+  const newNodes = layoutableNodes.map((node) => {
     const nodeWithPosition = dagreGraphInstance.node(node.id);
-    node.targetPosition = Position.Top;
-    node.sourcePosition = Position.Bottom;
-    node.position = {
-      x: nodeWithPosition.x - nodeWidth / 2,
-      y: nodeWithPosition.y - nodeHeight / 2,
+    return {
+      ...node,
+      targetPosition: Position.Top,
+      sourcePosition: Position.Bottom,
+      position: {
+        x: nodeWithPosition.x - nodeWidth / 2,
+        y: nodeWithPosition.y - nodeHeight / 2,
+      },
     };
-    return node;
   });
 
-  return { nodes, edges };
+  return { nodes: newNodes, edges: [...layoutableEdges] };
 };
 
 
@@ -136,7 +141,7 @@ export default function FmeaVisualizerPage() {
           type: node.nodeType,
           originalApiNode: node as FmeaNode,
         },
-        position: { x: Math.random() * 400, y: Math.random() * 400 },
+        position: { x: Math.random() * 400, y: Math.random() * 400 }, // Initial random for Dagre
       }));
 
       const parentChildEdges: RFEdge[] = allApiNodes
@@ -153,11 +158,13 @@ export default function FmeaVisualizerPage() {
       
       if (allTransformedNodes.length > 0) {
         const { nodes: layoutedMainNodes, edges: layoutedMainEdges } = getLayoutedElements(
-            [...allTransformedNodes], 
+            allTransformedNodes, 
             parentChildEdges
         );
         setMainRfNodes(layoutedMainNodes);
         setMainRfEdges(layoutedMainEdges);
+      } else {
+        setMainRfNodes([]); setMainRfEdges([]);
       }
 
 
@@ -183,12 +190,16 @@ export default function FmeaVisualizerPage() {
         const featureGraphApiNodes = allTransformedNodes.filter(node => featureNodeIds.has(node.id));
          if (featureGraphApiNodes.length > 0) {
             const { nodes: layoutedFeatureNodes, edges: layoutedFeatureEdges } = getLayoutedElements(
-                [...featureGraphApiNodes], 
+                featureGraphApiNodes, 
                 featureNetApiEdges
             );
             setFeatureRfNodes(layoutedFeatureNodes);
             setFeatureRfEdges(layoutedFeatureEdges);
+        } else {
+            setFeatureRfNodes([]); setFeatureRfEdges([]);
         }
+      } else {
+            setFeatureRfNodes([]); setFeatureRfEdges([]);
       }
       
       const failureNetLinks: NetworkLink[] = (parsedData as any).failureNet || [];
@@ -213,12 +224,16 @@ export default function FmeaVisualizerPage() {
         const failureGraphApiNodes = allTransformedNodes.filter(node => failureNodeIds.has(node.id));
         if (failureGraphApiNodes.length > 0) {
             const { nodes: layoutedFailureNodes, edges: layoutedFailureEdges } = getLayoutedElements(
-                [...failureGraphApiNodes], 
+                failureGraphApiNodes, 
                 failureNetApiEdges
             );
             setFailureRfNodes(layoutedFailureNodes);
             setFailureRfEdges(layoutedFailureEdges);
+        } else {
+            setFailureRfNodes([]); setFailureRfEdges([]);
         }
+      } else {
+            setFailureRfNodes([]); setFailureRfEdges([]);
       }
       
       setActiveTab("main"); 
@@ -280,8 +295,6 @@ export default function FmeaVisualizerPage() {
             markerEnd: { type: 'arrowclosed', color: 'hsl(var(--foreground)/0.5)' },
           });
         }
-        // Potentially trigger re-layout for main graph if parentId changed significantly
-        // For now, only edge update is handled here. Layout button can be used.
         return newEdges;
       });
     }
@@ -316,8 +329,7 @@ export default function FmeaVisualizerPage() {
       const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodesToLayout, edgesToLayout);
       setNodesFn([...layoutedNodes]); 
       setEdgesFn([...layoutedEdges]);
-      // setInitialLayoutAppliedForTabs(prev => new Set(prev).add(activeTab)); // Keep this if we want to mark it as "initially" laid out
-      setNeedsLayout(true); // Set needsLayout to true to trigger fitView on next render
+      setNeedsLayout(true); 
       toast({ title: "Layout Applied", description: `Graph layout for ${activeTab} view has been recalculated.` });
     } else {
       toast({ variant: "destructive", title: "Layout Error", description: `No data to layout for ${activeTab} view.` });
@@ -325,11 +337,7 @@ export default function FmeaVisualizerPage() {
   }, [activeTab, mainRfNodes, mainRfEdges, featureRfNodes, featureRfEdges, failureRfNodes, failureRfEdges, toast]);
   
   useEffect(() => {
-    // This effect ensures fitView is triggered when needsLayout becomes true
-    // And then resets needsLayout to prevent repeated fitView calls on minor changes.
     if (needsLayout) {
-      // The actual fitting is done by the fitView prop in GraphViewerWrapper
-      // We just need to reset needsLayout after the render cycle where fitView is true.
       const timer = setTimeout(() => setNeedsLayout(false), 0);
       return () => clearTimeout(timer);
     }
@@ -340,19 +348,15 @@ export default function FmeaVisualizerPage() {
     setActiveTab(value);
     setSelectedNode(null); 
     if (!initialLayoutAppliedForTabs.has(value)) {
-      // If tab hasn't been "initially" laid out (e.g. data just loaded), mark for layout + fitView
       setNeedsLayout(true);
       setInitialLayoutAppliedForTabs(prev => new Set(prev).add(value));
     } else {
-      // If tab was already visited and laid out, don't force fitView again,
-      // unless user explicitly hits re-layout button.
       setNeedsLayout(false);
     }
   };
   
   const currentNodes = activeTab === 'main' ? mainRfNodes : activeTab === 'feature' ? featureRfNodes : failureRfNodes;
-  const currentEdges = activeTab === 'main' ? mainRfEdges : activeTab === 'feature' ? featureRfEdges : failureRfEdges;
-  const noDataForActiveTab = currentNodes.length === 0;
+  const noDataForActiveTab = currentNodes.length === 0 && !isLoading;
 
 
   return (
@@ -453,6 +457,3 @@ export default function FmeaVisualizerPage() {
     </div>
   );
 }
-
-
-    
