@@ -185,6 +185,8 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
       return;
     }
 
+    let currentPayloadSnapshot = apiPayload; // For logging in case of error
+
     try {
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -192,6 +194,7 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(parsedPayload),
+        mode: 'cors', // Explicitly set mode, though it's the default
       });
 
       if (!response.ok) {
@@ -201,14 +204,14 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
 
       const responseDataText = await response.text();
       try {
-        JSON.parse(responseDataText); // Validate if response is JSON
+        JSON.parse(responseDataText); 
         setJsonInput(responseDataText);
         toast({
           title: "API Data Fetched",
           description: "Data successfully retrieved from the API and loaded into the JSON input area.",
         });
       } catch (e) {
-        setJsonInput(responseDataText); // Still set it if not JSON, maybe it's an error string
+        setJsonInput(responseDataText); 
         toast({
           variant: "destructive",
           title: "API Response Not JSON",
@@ -216,11 +219,23 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
         });
       }
     } catch (error: any) {
-      setApiFetchError(error.message);
+      let description = error.message || "An unknown error occurred while fetching data.";
+      if (error.message && error.message.toLowerCase().includes('failed to fetch')) {
+        description = `Failed to fetch: ${error.message}. This commonly occurs due to network issues or CORS (Cross-Origin Resource Sharing) policy on the API server. Please check your network connection and the browser's developer console (Network tab) for more specific error details related to CORS. The API server may need to be configured to allow requests from this origin.`;
+      }
+      
+      setApiFetchError(description); // Store the more detailed description
+      
       toast({
         variant: "destructive",
         title: "API Request Error",
-        description: error.message || "An unknown error occurred while fetching data.",
+        description: description,
+      });
+      console.error("API Fetch Error:", {
+        url: apiUrl,
+        payloadAttempted: currentPayloadSnapshot, // Log the payload string that was attempted
+        errorDetails: error,
+        errorMessage: error.message,
       });
     } finally {
       setIsFetchingApiData(false);
@@ -285,7 +300,7 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
           {isFetchingApiData && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Fetch Data from API
         </Button>
-        {apiFetchError && <p className="text-sm text-destructive mt-2">{apiFetchError}</p>}
+        {apiFetchError && !isFetchingApiData && <p className="text-sm text-destructive mt-2">{apiFetchError}</p>}
         
         <Separator className="my-6" />
 
@@ -313,5 +328,3 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
     </Card>
   );
 }
-
-    
