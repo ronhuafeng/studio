@@ -29,7 +29,7 @@ import { Layout, Network, AlertTriangleIcon, ListTree } from "lucide-react";
 const nodeWidth = 256 + 20; 
 const nodeHeight = 120 + 20;
 
-const getLayoutedElements = (initialNodes: RFNode<CustomNodeData>[], initialEdges: RFEdge[], direction = "TB") => {
+const getLayoutedElements = (initialNodes: RFNode<CustomNodeData>[], initialEdges: RFEdge[], direction = "LR") => {
   const dagreGraphInstance = new Dagre.graphlib.Graph();
   dagreGraphInstance.setDefaultEdgeLabel(() => ({}));
   dagreGraphInstance.setGraph({ rankdir: direction, nodesep: 80, ranksep: 120 });
@@ -51,8 +51,8 @@ const getLayoutedElements = (initialNodes: RFNode<CustomNodeData>[], initialEdge
     const nodeWithPosition = dagreGraphInstance.node(node.id);
     return {
       ...node,
-      targetPosition: Position.Top,
-      sourcePosition: Position.Bottom,
+      targetPosition: direction === "LR" ? Position.Left : Position.Top,
+      sourcePosition: direction === "LR" ? Position.Right : Position.Bottom,
       position: {
         x: nodeWithPosition.x - nodeWidth / 2,
         y: nodeWithPosition.y - nodeHeight / 2,
@@ -161,8 +161,8 @@ export default function FmeaVisualizerPage() {
             allTransformedNodes, 
             parentChildEdges
         );
-        setMainRfNodes(layoutedMainNodes);
-        setMainRfEdges(layoutedMainEdges);
+        setMainRfNodes([...layoutedMainNodes]);
+        setMainRfEdges([...layoutedMainEdges]);
       } else {
         setMainRfNodes([]); setMainRfEdges([]);
       }
@@ -193,8 +193,8 @@ export default function FmeaVisualizerPage() {
                 featureGraphApiNodes, 
                 featureNetApiEdges
             );
-            setFeatureRfNodes(layoutedFeatureNodes);
-            setFeatureRfEdges(layoutedFeatureEdges);
+            setFeatureRfNodes([...layoutedFeatureNodes]);
+            setFeatureRfEdges([...layoutedFeatureEdges]);
         } else {
             setFeatureRfNodes([]); setFeatureRfEdges([]);
         }
@@ -227,8 +227,8 @@ export default function FmeaVisualizerPage() {
                 failureGraphApiNodes, 
                 failureNetApiEdges
             );
-            setFailureRfNodes(layoutedFailureNodes);
-            setFailureRfEdges(layoutedFailureEdges);
+            setFailureRfNodes([...layoutedFailureNodes]);
+            setFailureRfEdges([...layoutedFailureEdges]);
         } else {
             setFailureRfNodes([]); setFailureRfEdges([]);
         }

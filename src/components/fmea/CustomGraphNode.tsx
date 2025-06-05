@@ -33,7 +33,7 @@ const nodeStyleMap: Record<string, { icon: React.ComponentType<{className?: stri
 };
 
 
-export function CustomGraphNode({ data, selected }: NodeProps<CustomNodeData>) {
+export function CustomGraphNode({ data, selected, sourcePosition = Position.Right, targetPosition = Position.Left }: NodeProps<CustomNodeData>) {
   const { label, type, originalApiNode } = data;
   const styleInfo = nodeStyleMap[type] || nodeStyleMap.default;
   const IconComponent = styleInfo.icon;
@@ -44,10 +44,10 @@ export function CustomGraphNode({ data, selected }: NodeProps<CustomNodeData>) {
 
   return (
     <>
-      <Handle type="target" position={Position.Top} className="!bg-accent w-3 h-3" />
+      <Handle type="target" position={targetPosition} className="!bg-accent w-3 h-3" />
       <Card 
         className={cn(
-          "shadow-md w-64 relative", // Added relative for UUID positioning
+          "shadow-md w-64 relative", 
           styleInfo.bgColorClass, 
           styleInfo.borderColorClass,
           selected ? `ring-2 ring-offset-1 ${styleInfo.borderColorClass} ring-opacity-75` : ""
@@ -58,7 +58,7 @@ export function CustomGraphNode({ data, selected }: NodeProps<CustomNodeData>) {
           borderColor: selected ? `hsl(var(--accent))` : styleInfo.borderColorClass.startsWith('border-chart-') ? `hsl(var(--${styleInfo.borderColorClass.substring(7)}))` : undefined,
         }}
       >
-        <CardHeader className="p-3 pr-10"> {/* Added pr-10 to make space for UUID */}
+        <CardHeader className="p-3 pr-10"> 
           <div className="flex items-center space-x-2">
             <IconComponent className={cn("w-5 h-5", styleInfo.colorClass)} />
             <CardTitle className={cn("text-sm font-medium leading-none", styleInfo.colorClass, "font-headline")}>
@@ -85,7 +85,7 @@ export function CustomGraphNode({ data, selected }: NodeProps<CustomNodeData>) {
           )}
         </CardContent>
       </Card>
-      <Handle type="source" position={Position.Bottom} className="!bg-accent w-3 h-3" />
+      <Handle type="source" position={sourcePosition} className="!bg-accent w-3 h-3" />
     </>
   );
 }
