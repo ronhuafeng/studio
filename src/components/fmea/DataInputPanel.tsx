@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
+import { parseJsonWithBigInt } from "@/lib/bigint-utils";
 
 interface DataInputPanelProps {
   onJsonSubmit: (json: string, type: ApiResponseType) => void;
@@ -20,9 +21,9 @@ interface DataInputPanelProps {
 
 const exampleRequirementsJson = `{
   "nodes": [
-    { "uuid": 101, "parentId": -1, "nodeType": "requirement", "description": "The system shall adhere to safety standard ISO 26262." },
-    { "uuid": 102, "parentId": 101, "nodeType": "func", "description": "Implement fault detection for critical sensors." },
-    { "uuid": 103, "parentId": 102, "nodeType": "cha", "description": "Sensor diagnostic coverage > 99%." }
+    { "uuid": 9223372036854775801, "parentId": -1, "nodeType": "requirement", "description": "The system shall adhere to safety standard ISO 26262." },
+    { "uuid": 9223372036854775802, "parentId": 9223372036854775801, "nodeType": "func", "description": "Implement fault detection for critical sensors." },
+    { "uuid": 9223372036854775803, "parentId": 9223372036854775802, "nodeType": "cha", "description": "Sensor diagnostic coverage > 99%." }
   ]
 }`;
 
@@ -34,19 +35,19 @@ const exampleDfmeaJson = `{
     "evaluationCriteria": "Automotive SPICE Level 3"
   },
   "nodes": [
-    { "uuid": 1, "parentId": -1, "nodeType": "system", "description": "Vehicle Powertrain System", "extra": { "dr": 1 } },
-    { "uuid": 2, "parentId": 1, "nodeType": "subsystem", "description": "Engine Control Unit (ECU)", "extra": { "dr": 2 } },
-    { "uuid": 3, "parentId": 2, "nodeType": "component", "description": "Microprocessor", "extra": { "dr": 3 } },
-    { "uuid": 4, "parentId": 3, "nodeType": "func", "description": "Execute control algorithms", "extra": { "category": 1 } },
-    { "uuid": 5, "parentId": 4, "nodeType": "failure", "description": "Algorithm crashes", "extra": { "failureType": 1, "severity": 9, "occurrence": 3 } },
-    { "uuid": 6, "parentId": 5, "nodeType": "action", "description": "Implement watchdog timer", "extra": { "category": 2, "detection": 4 } },
-    { "uuid": 7, "parentId": 2, "nodeType": "cha", "description": "Processing speed > 100 MIPS" }
+    { "uuid": 9223372036854775701, "parentId": -1, "nodeType": "system", "description": "Vehicle Powertrain System", "extra": { "dr": 1 } },
+    { "uuid": 9223372036854775702, "parentId": 9223372036854775701, "nodeType": "subsystem", "description": "Engine Control Unit (ECU)", "extra": { "dr": 2 } },
+    { "uuid": 9223372036854775703, "parentId": 9223372036854775702, "nodeType": "component", "description": "Microprocessor", "extra": { "dr": 3 } },
+    { "uuid": 9223372036854775704, "parentId": 9223372036854775703, "nodeType": "func", "description": "Execute control algorithms", "extra": { "category": 1 } },
+    { "uuid": 9223372036854775705, "parentId": 9223372036854775704, "nodeType": "failure", "description": "Algorithm crashes", "extra": { "failureType": 1, "severity": 9, "occurrence": 3 } },
+    { "uuid": 9223372036854775706, "parentId": 9223372036854775705, "nodeType": "action", "description": "Implement watchdog timer", "extra": { "category": 2, "detection": 4 } },
+    { "uuid": 9223372036854775707, "parentId": 9223372036854775702, "nodeType": "cha", "description": "Processing speed > 100 MIPS" }
   ],
   "featureNet": [
-    { "from": 4, "to": 7, "type": 1 }
+    { "from": 9223372036854775704, "to": 9223372036854775707, "type": 1 }
   ],
   "failureNet": [
-    { "from": 5, "to": 5, "type": 2 }
+    { "from": 9223372036854775705, "to": 9223372036854775705, "type": 2 }
   ]
 }`;
 
@@ -58,21 +59,21 @@ const examplePfmeaJson = `{
     "evaluationCriteria": "IATF 16949 Manufacturing Standards"
   },
   "nodes": [
-    { "uuid": 201, "parentId": -1, "nodeType": "item", "description": "Battery Cell Stacking Station" },
-    { "uuid": 202, "parentId": 201, "nodeType": "step", "description": "Pick and place cell" },
-    { "uuid": 203, "parentId": 202, "nodeType": "elem", "description": "Robot Gripper", "extra": { "em": 1 } },
-    { "uuid": 204, "parentId": 203, "nodeType": "func", "description": "Securely hold cell during transfer" },
-    { "uuid": 205, "parentId": 204, "nodeType": "cha", "description": "Gripping force between 5N-7N", "extra": { "type": "process" } },
-    { "uuid": 206, "parentId": 204, "nodeType": "mode", "description": "Cell dropped or misaligned" },
-    { "uuid": 207, "parentId": 206, "nodeType": "effect", "description": "Damaged cell, potential short circuit", "extra": { "category": 1, "severity": 10 } },
-    { "uuid": 208, "parentId": 206, "nodeType": "cause", "description": "Incorrect gripper pressure", "extra": { "occurrence": 4 } },
-    { "uuid": 209, "parentId": 208, "nodeType": "action", "description": "Calibrate gripper pressure sensor daily", "extra": { "category": 1, "detection": 3 } }
+    { "uuid": "590066152953221201", "parentId": "-1", "nodeType": "item", "description": "Battery Cell Stacking Station" },
+    { "uuid": "590066152953221202", "parentId": "590066152953221201", "nodeType": "step", "description": "Pick and place cell" },
+    { "uuid": "590066152953221203", "parentId": "590066152953221202", "nodeType": "elem", "description": "Robot Gripper", "extra": { "em": 1 } },
+    { "uuid": "590066152953221204", "parentId": "590066152953221203", "nodeType": "func", "description": "Securely hold cell during transfer" },
+    { "uuid": "590066152953221205", "parentId": "590066152953221204", "nodeType": "cha", "description": "Gripping force between 5N-7N", "extra": { "type": "process" } },
+    { "uuid": "590066152953221206", "parentId": "590066152953221204", "nodeType": "mode", "description": "Cell dropped or misaligned" },
+    { "uuid": "590066152953221207", "parentId": "590066152953221206", "nodeType": "effect", "description": "Damaged cell, potential short circuit", "extra": { "category": 1, "severity": 10 } },
+    { "uuid": "590066152953221208", "parentId": "590066152953221206", "nodeType": "cause", "description": "Incorrect gripper pressure", "extra": { "occurrence": 4 } },
+    { "uuid": "590066152953221209", "parentId": "590066152953221208", "nodeType": "action", "description": "Calibrate gripper pressure sensor daily", "extra": { "category": 1, "detection": 3 } }
   ],
   "featureNet": [
-    { "from": 204, "to": 205, "type": 1 }
+    { "from": "590066152953221204", "to": "590066152953221205", "type": 1 }
   ],
   "failureNet": [
-    { "from": 206, "to": 207, "type": 3 }
+    { "from": "590066152953221206", "to": "590066152953221207", "type": 3 }
   ]
 }`;
 
@@ -89,7 +90,7 @@ const defaultApiPayloads: Record<ApiResponseType, string> = {
   "sessionId": "session_ghia17289_requirements_focus",
   "nodes": [
     {
-      "uuid": 101
+      "uuid": "590066152953221121"
     }
   ],
   "documentIds": [
@@ -98,8 +99,8 @@ const defaultApiPayloads: Record<ApiResponseType, string> = {
   "modifiedStructure": {
     "nodes": [
       {
-        "uuid": 100,
-        "parentId": -1,
+        "uuid": "590066152953221100",
+        "parentId": "-1",
         "nodeType": "system",
         "description": "调整后的机械安全系统",
         "extra": {
@@ -107,15 +108,15 @@ const defaultApiPayloads: Record<ApiResponseType, string> = {
         }
       },
       {
-        "uuid": 101,
-        "parentId": 100,
+        "uuid": "590066152953221121",
+        "parentId": "590066152953221100",
         "nodeType": "subsystem",
         "description": "调整后的挤压防护子系统",
         "extra": {}
       },
       {
-        "uuid": 102,
-        "parentId": 101,
+        "uuid": "590066152953221122",
+        "parentId": "590066152953221121",
         "nodeType": "component",
         "description": "定制化安全间距挡板",
         "extra": {}
@@ -174,7 +175,7 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
     let parsedPayload;
 
     try {
-      parsedPayload = JSON.parse(apiPayload);
+      parsedPayload = parseJsonWithBigInt(apiPayload);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -209,7 +210,7 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
 
       const responseDataText = await response.text();
       try {
-        JSON.parse(responseDataText); 
+        parseJsonWithBigInt(responseDataText); 
         setJsonInput(responseDataText);
         toast({
           title: "API Data Fetched",

@@ -1,8 +1,8 @@
 export type ApiResponseType = 'requirements' | 'dfmea' | 'pfmea';
 
 export interface BaseApiNode {
-  uuid: number;
-  parentId: number;
+  uuid: bigint;
+  parentId: bigint;
   nodeType: string;
   description: string;
   extra?: Record<string, any>;
@@ -40,8 +40,8 @@ export interface DfmeaApiNode extends BaseApiNode {
   extra?: DfmeaSystemExtra | DfmeaFuncExtra | DfmeaFailureExtra | DfmeaActionExtra | Record<string, any>;
 }
 export interface NetworkLink {
-  from: number;
-  to: number;
+  from: bigint;
+  to: bigint;
   type: number;
 }
 export interface DFMEAAnalysisResponse {

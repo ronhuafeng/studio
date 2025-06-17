@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlusCircle } from "lucide-react";
+import { formatBigIntForEditor, isBigInt } from "@/lib/bigint-utils";
 
 interface PropertiesEditorPanelProps {
   nodeData: FmeaNode | null;
@@ -99,11 +100,11 @@ export function PropertiesEditorPanel({ nodeData, apiResponseType, onPropertyCha
     );
   }
 
-  const handleInputChange = (field: keyof FmeaNode | `extra.${string}`, value: string | number) => {
-    const updatedNode = { ...nodeData, extra: { ...(nodeData.extra || {}) } }; // Ensure extra is an object
+  const handleInputChange = (field: keyof FmeaNode | `extra.${string}`, value: string | number | bigint) => {
+    const updatedNode = { ...nodeData, extra: { ...(nodeData.extra || {}) } } as FmeaNode; // Ensure extra is an object
     if (typeof field === 'string' && field.startsWith('extra.')) {
       const extraKey = field.substring(6);
-      updatedNode.extra![extraKey] = value;
+      (updatedNode.extra as any)![extraKey] = value;
     } else {
       (updatedNode as any)[field] = value;
     }
@@ -118,7 +119,7 @@ export function PropertiesEditorPanel({ nodeData, apiResponseType, onPropertyCha
         ...(nodeData.extra || {}),
         [newExtraKey.trim()]: newExtraValue,
       },
-    };
+    } as FmeaNode;
     onPropertyChange(updatedNode);
     setNewExtraKey("");
     setNewExtraValue("");
@@ -135,21 +136,33 @@ export function PropertiesEditorPanel({ nodeData, apiResponseType, onPropertyCha
     <Card className="shadow-lg h-full flex flex-col">
       <CardHeader>
         <CardTitle className="font-headline">Edit Node: <span className="text-accent">{nodeData.nodeType}</span></CardTitle>
-        <CardDescription>UUID: {nodeData.uuid}</CardDescription>
+        <CardDescription>UUID: {formatBigIntForEditor(nodeData.uuid)}</CardDescription>
       </CardHeader>
       <ScrollArea className="flex-grow">
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="uuid">UUID (Read-only)</Label>
-            <Input id="uuid" value={nodeData.uuid} readOnly disabled className="mt-1 bg-muted/50" />
+            <Input id="uuid" value={formatBigIntForEditor(nodeData.uuid)} readOnly disabled className="mt-1 bg-muted/50" />
           </div>
           <div>
             <Label htmlFor="parentId">Parent ID</Label>
             <Input
               id="parentId"
-              type="number"
-              value={nodeData.parentId === -1 ? '' : nodeData.parentId} // Show empty if -1 for better UX
-              onChange={(e) => handleInputChange('parentId', e.target.value === '' ? -1 : (parseInt(e.target.value, 10) || 0))}
+              type="text"
+              value={nodeData.parentId === BigInt(-1) ? '' : nodeData.parentId.toString()} // Show empty if -1 for better UX
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === '') {
+                  handleInputChange('parentId', BigInt(-1));
+                } else {
+                  try {
+                    handleInputChange('parentId', BigInt(value));
+                  } catch (error) {
+                    // If BigInt conversion fails, keep the current value
+                    // Could add validation feedback here
+                  }
+                }
+              }}
               className="mt-1"
               disabled={disabled}
               placeholder="Enter Parent ID or leave empty if none"
@@ -180,7 +193,7 @@ export function PropertiesEditorPanel({ nodeData, apiResponseType, onPropertyCha
                   <Input
                     id={`extra-${field.key}`}
                     type={field.type === 'number' ? 'number' : 'text'}
-                    value={nodeData.extra?.[field.key] ?? ''}
+                    value={(nodeData.extra as any)?.[field.key] ?? ''}
                     onChange={(e) => handleInputChange(`extra.${field.key}`, field.type === 'number' ? parseInt(e.target.value, 10) || 0 : e.target.value)}
                     className="mt-1"
                     disabled={disabled}
