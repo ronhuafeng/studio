@@ -256,9 +256,23 @@ export default function FmeaVisualizerPage() {
           id: `e_interface_${link.structureId}_${link.startId}_${link.endId}_${link.type}_${link.interaction}`,
           source: link.startId.toString(),
           target: link.endId.toString(),
-          label: `Interface (T:${link.type}, I:${link.interaction}) [${formatBigIntForDisplay(link.startId)}→${formatBigIntForDisplay(link.endId)}]`,
+          label: link.description,
           type: 'smoothstep',
-          style: { stroke: 'hsl(var(--chart-4))', strokeWidth: 2 },
+          style: { stroke: link.effect === 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))', strokeWidth: 2 },
+          markerEnd: {
+            type: 'arrowclosed',
+            width: 10,
+            height: 10,
+            color: 'hsl(var(--chart-4))',
+          },
+          ...(link.interaction === 1 && {
+            markerStart: {
+              type: 'arrowclosed',
+              width: 10,
+              height: 10,
+              color: 'hsl(var(--chart-4))',
+            },
+          }),
         }));
 
       if (interfaceApiEdges.length > 0) {
