@@ -15,6 +15,7 @@ import type {
   NetworkLink,
   CustomNodeData,
   BaseApiNode,
+  InterfaceLink,
 } from "@/types/fmea";
 
 import { DataInputPanel } from "@/components/fmea/DataInputPanel";
@@ -26,6 +27,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Layout, Network, AlertTriangleIcon, ListTree, Share2 } from "lucide-react";
+
+import { InterfaceViewer } from "@/components/fmea/InterfaceViewer";
+
 
 const nodeWidth = 256 + 20; 
 const nodeHeight = 120 + 20;
@@ -242,12 +246,14 @@ export default function FmeaVisualizerPage() {
             setFailureRfNodes([]); setFailureRfEdges([]);
       }
 
+      // In the handleJsonSubmit function, replace the interface processing section:
+
       // Process interface links for interface graph
-      const interfaceLinks: any[] = (parsedData as any).interface || [];
+      const interfaceLinks: InterfaceLink[] = (parsedData as any).interface || [];
       const interfaceApiEdges: RFEdge[] = interfaceLinks
         .filter(link => allApiNodes.find(n => n.uuid === link.startId) && allApiNodes.find(n => n.uuid === link.endId))
         .map(link => ({
-          id: `e_interface_${link.startId}_${link.endId}_${link.type}_${link.interaction}`,
+          id: `e_interface_${link.structureId}_${link.startId}_${link.endId}_${link.type}_${link.interaction}`,
           source: link.startId.toString(),
           target: link.endId.toString(),
           label: `Interface (T:${link.type}, I:${link.interaction}) [${formatBigIntForDisplay(link.startId)}→${formatBigIntForDisplay(link.endId)}]`,
@@ -269,11 +275,15 @@ export default function FmeaVisualizerPage() {
             );
             setInterfaceRfNodes([...layoutedInterfaceNodes]);
             setInterfaceRfEdges([...layoutedInterfaceEdges]);
+            // Store interface links for the new viewer
+            setInterfaceLinks(interfaceLinks);
         } else {
             setInterfaceRfNodes([]); setInterfaceRfEdges([]);
+            setInterfaceLinks([]);
         }
       } else {
             setInterfaceRfNodes([]); setInterfaceRfEdges([]);
+            setInterfaceLinks([]);
       }
       
       setActiveTab("main"); 
@@ -288,6 +298,9 @@ export default function FmeaVisualizerPage() {
       setIsLoading(false);
     }
   }, [toast]);
+
+  const [interfaceLinks, setInterfaceLinks] = useState<InterfaceLink[]>([]);
+
 
   const handleNodeClick = useCallback((event: React.MouseEvent, node: RFNode<CustomNodeData>) => {
     setSelectedNode(node.data.originalApiNode);
@@ -489,15 +502,16 @@ export default function FmeaVisualizerPage() {
                 </div>
               )}
             </TabsContent>
+            // Replace the interface TabsContent section:
             <TabsContent value="interface" className="h-full m-0">
               {!isLoading && interfaceRfNodes.length > 0 ? (
-                <GraphViewerWrapper
+                <InterfaceViewer
                   nodes={interfaceRfNodes}
                   edges={interfaceRfEdges}
+                  interfaceLinks={interfaceLinks}
                   onNodeClick={handleNodeClick}
                   onNodesChange={onNodesChange}
                   onEdgesChange={onEdgesChange}
-                  fitView={needsLayout && activeTab === 'interface'}
                 />
               ) : (
                 <div className="w-full h-full rounded-lg shadow-lg border border-border bg-card flex items-center justify-center">
