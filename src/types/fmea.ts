@@ -44,11 +44,24 @@ export interface NetworkLink {
   to: bigint;
   type: number;
 }
+
+export interface InterfaceLink {
+  structureId: bigint;
+  startId: bigint;
+  endId: bigint;
+  type: number;
+  interaction: number;
+  effect: number;
+  description: string;
+  virtualParts: string;
+}
+
 export interface DFMEAAnalysisResponse {
   baseInfo?: DfmeaBaseInfo;
   nodes: DfmeaApiNode[];
   featureNet?: NetworkLink[];
   failureNet?: NetworkLink[];
+  interface?: InterfaceLink[];
 }
 
 // PFMEA Analysis
@@ -70,6 +83,7 @@ export interface PFMEAAnalysisResponse {
   nodes: PfmeaApiNode[];
   featureNet?: NetworkLink[];
   failureNet?: NetworkLink[];
+  interface?: InterfaceLink[];
 }
 
 // Union type for any FMEA node
