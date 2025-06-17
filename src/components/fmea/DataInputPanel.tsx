@@ -28,27 +28,733 @@ const exampleRequirementsJson = `{
 }`;
 
 const exampleDfmeaJson = `{
-  "baseInfo": {
-    "name": "Sample DFMEA Project - Powertrain Control Module",
-    "partNo": "PCM-001-REV-B",
-    "partName": "Powertrain Control Module",
-    "evaluationCriteria": "Automotive SPICE Level 3"
-  },
-  "nodes": [
-    { "uuid": 9223372036854775701, "parentId": -1, "nodeType": "system", "description": "Vehicle Powertrain System", "extra": { "dr": 1 } },
-    { "uuid": 9223372036854775702, "parentId": 9223372036854775701, "nodeType": "subsystem", "description": "Engine Control Unit (ECU)", "extra": { "dr": 2 } },
-    { "uuid": 9223372036854775703, "parentId": 9223372036854775702, "nodeType": "component", "description": "Microprocessor", "extra": { "dr": 3 } },
-    { "uuid": 9223372036854775704, "parentId": 9223372036854775703, "nodeType": "func", "description": "Execute control algorithms", "extra": { "category": 1 } },
-    { "uuid": 9223372036854775705, "parentId": 9223372036854775704, "nodeType": "failure", "description": "Algorithm crashes", "extra": { "failureType": 1, "severity": 9, "occurrence": 3 } },
-    { "uuid": 9223372036854775706, "parentId": 9223372036854775705, "nodeType": "action", "description": "Implement watchdog timer", "extra": { "category": 2, "detection": 4 } },
-    { "uuid": 9223372036854775707, "parentId": 9223372036854775702, "nodeType": "cha", "description": "Processing speed > 100 MIPS" }
-  ],
-  "featureNet": [
-    { "from": 9223372036854775704, "to": 9223372036854775707, "type": 1 }
-  ],
-  "failureNet": [
-    { "from": 9223372036854775705, "to": 9223372036854775705, "type": 2 }
-  ]
+    "baseInfo": {
+        "name": "激光器 DFMEA 分析",
+        "partNo": "LASER-001",
+        "partName": "激光器",
+        "evaluationCriteria": "AIAG-VDA"
+    },
+    "nodes": [
+        {
+            "uuid": 589738752264507392,
+            "parentId": -1,
+            "nodeType": "system",
+            "description": "激光器系统",
+            "extra": {}
+        },
+        {
+            "uuid": 589738752264507393,
+            "parentId": 589738752264507392,
+            "nodeType": "subsystem",
+            "description": "激光发射子系统",
+            "extra": {}
+        },
+        {
+            "uuid": 589738752264507394,
+            "parentId": 589738752264507393,
+            "nodeType": "component",
+            "description": "激光二极管",
+            "extra": {
+                "dr": 0
+            }
+        },
+        {
+            "uuid": 589738752264507395,
+            "parentId": 589738752264507393,
+            "nodeType": "component",
+            "description": "准直透镜",
+            "extra": {
+                "dr": 0
+            }
+        },
+        {
+            "uuid": 589738752264507396,
+            "parentId": 589738752264507393,
+            "nodeType": "component",
+            "description": "散热模块",
+            "extra": {
+                "dr": 0
+            }
+        },
+        {
+            "uuid": 589738752264507397,
+            "parentId": 589738752264507392,
+            "nodeType": "subsystem",
+            "description": "电源管理子系统",
+            "extra": {}
+        },
+        {
+            "uuid": 589738752264507398,
+            "parentId": 589738752264507397,
+            "nodeType": "component",
+            "description": "激光驱动电路",
+            "extra": {
+                "dr": 0
+            }
+        },
+        {
+            "uuid": 589738752264507399,
+            "parentId": 589738752264507397,
+            "nodeType": "component",
+            "description": "温度控制电路",
+            "extra": {
+                "dr": 0
+            }
+        },
+        {
+            "uuid": 589738752264507400,
+            "parentId": 589738752264507392,
+            "nodeType": "subsystem",
+            "description": "控制及通讯子系统",
+            "extra": {}
+        },
+        {
+            "uuid": 589738752264507401,
+            "parentId": 589738752264507400,
+            "nodeType": "component",
+            "description": "微控制器",
+            "extra": {
+                "dr": 0
+            }
+        },
+        {
+            "uuid": 589738752264507402,
+            "parentId": 589738752264507400,
+            "nodeType": "component",
+            "description": "通讯接口",
+            "extra": {
+                "dr": 0
+            }
+        },
+        {
+            "uuid": 589738752264507403,
+            "parentId": 589738752264507394,
+            "nodeType": "func",
+            "description": "产生稳定激光束",
+            "extra": {
+                "category": 0
+            }
+        },
+        {
+            "uuid": 589738752264507404,
+            "parentId": 589738752264507403,
+            "nodeType": "cha",
+            "description": "输出功率稳定性",
+            "extra": {
+                "req_spe": "±5% 额定功率",
+                "spe_tol": "100W ± 5W",
+                "classification": "QCC"
+            }
+        },
+        {
+            "uuid": 589738752264507405,
+            "parentId": 589738752264507403,
+            "nodeType": "cha",
+            "description": "波长精度",
+            "extra": {
+                "req_spe": "±0.5 nm",
+                "spe_tol": "980 nm ± 0.5 nm",
+                "classification": "QCC"
+            }
+        },
+        {
+            "uuid": 589738752264507406,
+            "parentId": 589738752264507395,
+            "nodeType": "func",
+            "description": "将激光束准直",
+            "extra": {
+                "category": 0
+            }
+        },
+        {
+            "uuid": 589738752264507407,
+            "parentId": 589738752264507406,
+            "nodeType": "cha",
+            "description": "光束发散角",
+            "extra": {
+                "req_spe": "小于 2 mrad",
+                "spe_tol": "< 2 mrad",
+                "classification": "QCC"
+            }
+        },
+        {
+            "uuid": 589738752264507408,
+            "parentId": 589738752264507396,
+            "nodeType": "func",
+            "description": "有效散发激光二极管热量",
+            "extra": {
+                "category": 0
+            }
+        },
+        {
+            "uuid": 589738752264507409,
+            "parentId": 589738752264507408,
+            "nodeType": "cha",
+            "description": "热阻",
+            "extra": {
+                "req_spe": "小于 0.5 °C/W",
+                "spe_tol": "< 0.5 °C/W",
+                "classification": "QCC"
+            }
+        },
+        {
+            "uuid": 589738752264507410,
+            "parentId": 589738752264507398,
+            "nodeType": "func",
+            "description": "为激光二极管提供稳定电流",
+            "extra": {
+                "category": 0
+            }
+        },
+        {
+            "uuid": 589738752264507411,
+            "parentId": 589738752264507410,
+            "nodeType": "cha",
+            "description": "电流稳定性",
+            "extra": {
+                "req_spe": "纹波小于 2%",
+                "spe_tol": "< 2% 纹波",
+                "classification": "QCC"
+            }
+        },
+        {
+            "uuid": 589738752264507412,
+            "parentId": 589738752264507399,
+            "nodeType": "func",
+            "description": "控制激光二极管温度",
+            "extra": {
+                "category": 0
+            }
+        },
+        {
+            "uuid": 589738752264507413,
+            "parentId": 589738752264507412,
+            "nodeType": "cha",
+            "description": "温度控制精度",
+            "extra": {
+                "req_spe": "±0.1 °C",
+                "spe_tol": "25 ± 0.1 °C",
+                "classification": "QCC"
+            }
+        },
+        {
+            "uuid": 589738752264507414,
+            "parentId": 589738752264507401,
+            "nodeType": "func",
+            "description": "执行激光器控制逻辑",
+            "extra": {
+                "category": 0
+            }
+        },
+        {
+            "uuid": 589738752264507415,
+            "parentId": 589738752264507414,
+            "nodeType": "cha",
+            "description": "指令响应时间",
+            "extra": {
+                "req_spe": "小于 10 ms",
+                "spe_tol": "< 10 ms",
+                "classification": "QCC"
+            }
+        },
+        {
+            "uuid": 589738752264507416,
+            "parentId": 589738752264507402,
+            "nodeType": "func",
+            "description": "实现外部系统通讯",
+            "extra": {
+                "category": 0
+            }
+        },
+        {
+            "uuid": 589738752264507417,
+            "parentId": 589738752264507416,
+            "nodeType": "cha",
+            "description": "通讯速率",
+            "extra": {
+                "req_spe": "115200 bps",
+                "spe_tol": "115200 bps",
+                "classification": "QCC"
+            }
+        },
+        {
+            "uuid": 589738752264507418,
+            "parentId": 589738752264507404,
+            "nodeType": "failure",
+            "description": "输出功率不稳定",
+            "extra": {
+                "failureType": 1,
+                "severity": 8
+            }
+        },
+        {
+            "uuid": 589738752264507419,
+            "parentId": 589738752264507405,
+            "nodeType": "failure",
+            "description": "波长漂移",
+            "extra": {
+                "failureType": 1,
+                "severity": 7
+            }
+        },
+        {
+            "uuid": 589738752264507420,
+            "parentId": 589738752264507407,
+            "nodeType": "failure",
+            "description": "光束发散角过大",
+            "extra": {
+                "failureType": 1,
+                "severity": 6
+            }
+        },
+        {
+            "uuid": 589738752264507421,
+            "parentId": 589738752264507409,
+            "nodeType": "failure",
+            "description": "散热不良导致过热",
+            "extra": {
+                "failureType": 1,
+                "severity": 9
+            }
+        },
+        {
+            "uuid": 589738752264507422,
+            "parentId": 589738752264507411,
+            "nodeType": "failure",
+            "description": "激光驱动电流波动",
+            "extra": {
+                "failureType": 1,
+                "severity": 8
+            }
+        },
+        {
+            "uuid": 589738752264507423,
+            "parentId": 589738752264507413,
+            "nodeType": "failure",
+            "description": "温度控制失准",
+            "extra": {
+                "failureType": 1,
+                "severity": 7
+            }
+        },
+        {
+            "uuid": 589738752264507424,
+            "parentId": 589738752264507415,
+            "nodeType": "failure",
+            "description": "控制指令响应延迟",
+            "extra": {
+                "failureType": 1,
+                "severity": 5
+            }
+        },
+        {
+            "uuid": 589738752264507425,
+            "parentId": 589738752264507417,
+            "nodeType": "failure",
+            "description": "通讯中断",
+            "extra": {
+                "failureType": 1,
+                "severity": 6
+            }
+        },
+        {
+            "uuid": 589738752264507426,
+            "parentId": 589738752264507418,
+            "nodeType": "action",
+            "description": "激光二极管老化测试",
+            "extra": {
+                "category": 1,
+                "detection": 7,
+                "occurrence": 5
+            }
+        },
+        {
+            "uuid": 589738752264507427,
+            "parentId": 589738752264507418,
+            "nodeType": "action",
+            "description": "输出功率闭环反馈控制",
+            "extra": {
+                "category": 2,
+                "detection": 9,
+                "occurrence": 3
+            }
+        },
+        {
+            "uuid": 589738752264507428,
+            "parentId": 589738752264507419,
+            "nodeType": "action",
+            "description": "激光二极管选型验证",
+            "extra": {
+                "category": 1,
+                "detection": 7,
+                "occurrence": 4
+            }
+        },
+        {
+            "uuid": 589738752264507429,
+            "parentId": 589738752264507419,
+            "nodeType": "action",
+            "description": "精确温度控制",
+            "extra": {
+                "category": 2,
+                "detection": 8,
+                "occurrence": 3
+            }
+        },
+        {
+            "uuid": 589738752264507430,
+            "parentId": 589738752264507420,
+            "nodeType": "action",
+            "description": "透镜光学性能测试",
+            "extra": {
+                "category": 1,
+                "detection": 8,
+                "occurrence": 3
+            }
+        },
+        {
+            "uuid": 589738752264507431,
+            "parentId": 589738752264507420,
+            "nodeType": "action",
+            "description": "光路对准工艺控制",
+            "extra": {
+                "category": 2,
+                "detection": 7,
+                "occurrence": 2
+            }
+        },
+        {
+            "uuid": 589738752264507432,
+            "parentId": 589738752264507421,
+            "nodeType": "action",
+            "description": "散热模块热设计验证",
+            "extra": {
+                "category": 1,
+                "detection": 7,
+                "occurrence": 4
+            }
+        },
+        {
+            "uuid": 589738752264507433,
+            "parentId": 589738752264507421,
+            "nodeType": "action",
+            "description": "温度传感器实时监控",
+            "extra": {
+                "category": 2,
+                "detection": 9,
+                "occurrence": 2
+            }
+        },
+        {
+            "uuid": 589738752264507434,
+            "parentId": 589738752264507422,
+            "nodeType": "action",
+            "description": "激光驱动电路稳定性测试",
+            "extra": {
+                "category": 1,
+                "detection": 7,
+                "occurrence": 5
+            }
+        },
+        {
+            "uuid": 589738752264507435,
+            "parentId": 589738752264507422,
+            "nodeType": "action",
+            "description": "电源滤波设计优化",
+            "extra": {
+                "category": 2,
+                "detection": 8,
+                "occurrence": 3
+            }
+        },
+        {
+            "uuid": 589738752264507436,
+            "parentId": 589738752264507423,
+            "nodeType": "action",
+            "description": "温度传感器校准",
+            "extra": {
+                "category": 1,
+                "detection": 8,
+                "occurrence": 4
+            }
+        },
+        {
+            "uuid": 589738752264507437,
+            "parentId": 589738752264507423,
+            "nodeType": "action",
+            "description": "PID控制参数优化",
+            "extra": {
+                "category": 2,
+                "detection": 8,
+                "occurrence": 2
+            }
+        },
+        {
+            "uuid": 589738752264507438,
+            "parentId": 589738752264507424,
+            "nodeType": "action",
+            "description": "软件代码审查",
+            "extra": {
+                "category": 1,
+                "detection": 7,
+                "occurrence": 3
+            }
+        },
+        {
+            "uuid": 589738752264507439,
+            "parentId": 589738752264507424,
+            "nodeType": "action",
+            "description": "实时操作系统任务调度优化",
+            "extra": {
+                "category": 2,
+                "detection": 6,
+                "occurrence": 2
+            }
+        },
+        {
+            "uuid": 589738752264507440,
+            "parentId": 589738752264507425,
+            "nodeType": "action",
+            "description": "通讯协议测试",
+            "extra": {
+                "category": 1,
+                "detection": 8,
+                "occurrence": 3
+            }
+        },
+        {
+            "uuid": 589738752264507441,
+            "parentId": 589738752264507425,
+            "nodeType": "action",
+            "description": "通讯链路冗余设计",
+            "extra": {
+                "category": 2,
+                "detection": 7,
+                "occurrence": 1
+            }
+        }
+    ],
+    "failureNet": [
+        {
+            "from": 589738752264507423,
+            "to": 589738752264507419,
+            "type": 1
+        },
+        {
+            "from": 589738752264507423,
+            "to": 589738752264507418,
+            "type": 1
+        },
+        {
+            "from": 589738752264507423,
+            "to": 589738752264507421,
+            "type": 2
+        }
+    ],
+    "interface": [
+        {
+            "structureId": 589738752264507393,
+            "startId": 589738752264507394,
+            "endId": 589738752264507395,
+            "type": 1,
+            "interaction": 0,
+            "effect": 0,
+            "description": "激光二极管与准直透镜之间的物理连接，以光学对准产生激光束。",
+            "virtualParts": "光学路径连接"
+        },
+        {
+            "structureId": 589738752264507393,
+            "startId": 589738752264507394,
+            "endId": 589738752264507395,
+            "type": 2,
+            "interaction": 0,
+            "effect": 0,
+            "description": "激光二极管向准直透镜发出光能（激光束）。",
+            "virtualParts": "激光束传输"
+        },
+        {
+            "structureId": 589738752264507393,
+            "startId": 589738752264507394,
+            "endId": 589738752264507396,
+            "type": 1,
+            "interaction": 1,
+            "effect": 0,
+            "description": "激光二极管与散热模块之间的物理接触，用于热量传导。",
+            "virtualParts": "导热界面"
+        },
+        {
+            "structureId": 589738752264507393,
+            "startId": 589738752264507394,
+            "endId": 589738752264507396,
+            "type": 2,
+            "interaction": 0,
+            "effect": 0,
+            "description": "激光二极管向散热模块传输其产生的热能。",
+            "virtualParts": "热量传导路径"
+        },
+        {
+            "structureId": 589738752264507393,
+            "startId": 589738752264507394,
+            "endId": 589738752264507398,
+            "type": 1,
+            "interaction": 1,
+            "effect": 0,
+            "description": "激光二极管与激光驱动电路之间的电气连接，用于供电和接收驱动信号。",
+            "virtualParts": "电源连接线"
+        },
+        {
+            "structureId": 589738752264507393,
+            "startId": 589738752264507398,
+            "endId": 589738752264507394,
+            "type": 2,
+            "interaction": 0,
+            "effect": 0,
+            "description": "激光驱动电路向激光二极管提供稳定的电流驱动其发光。",
+            "virtualParts": "电流驱动"
+        },
+        {
+            "structureId": 589738752264507393,
+            "startId": 589738752264507394,
+            "endId": 589738752264507399,
+            "type": 1,
+            "interaction": 1,
+            "effect": 0,
+            "description": "激光二极管与温度控制电路之间的传感器连接，用于温度反馈。",
+            "virtualParts": "温度传感器线"
+        },
+        {
+            "structureId": 589738752264507393,
+            "startId": 589738752264507394,
+            "endId": 589738752264507399,
+            "type": 6,
+            "interaction": 0,
+            "effect": 0,
+            "description": "激光二极管（通过传感器）向温度控制电路传输温度信息。",
+            "virtualParts": "温度信号反馈"
+        },
+        {
+            "structureId": 589738752264507392,
+            "startId": 589738752264507398,
+            "endId": 589738752264507401,
+            "type": 1,
+            "interaction": 1,
+            "effect": 0,
+            "description": "激光驱动电路与微控制器之间的电气连接，用于控制信号传输和状态反馈。",
+            "virtualParts": "控制信号线"
+        },
+        {
+            "structureId": 589738752264507392,
+            "startId": 589738752264507401,
+            "endId": 589738752264507398,
+            "type": 6,
+            "interaction": 0,
+            "effect": 0,
+            "description": "微控制器向激光驱动电路发送指令，控制激光二极管的启停和功率。",
+            "virtualParts": "功率控制指令"
+        },
+        {
+            "structureId": 589738752264507392,
+            "startId": 589738752264507398,
+            "endId": 589738752264507401,
+            "type": 6,
+            "interaction": 0,
+            "effect": 0,
+            "description": "激光驱动电路向微控制器反馈驱动状态信息（如电流、电压）。",
+            "virtualParts": "驱动状态反馈"
+        },
+        {
+            "structureId": 589738752264507392,
+            "startId": 589738752264507399,
+            "endId": 589738752264507401,
+            "type": 1,
+            "interaction": 1,
+            "effect": 0,
+            "description": "温度控制电路与微控制器之间的电气连接，用于控制信号传输和温度反馈。",
+            "virtualParts": "温度控制信号线"
+        },
+        {
+            "structureId": 589738752264507392,
+            "startId": 589738752264507401,
+            "endId": 589738752264507399,
+            "type": 6,
+            "interaction": 0,
+            "effect": 0,
+            "description": "微控制器向温度控制电路发送设定温度指令。",
+            "virtualParts": "温度设定指令"
+        },
+        {
+            "structureId": 589738752264507392,
+            "startId": 589738752264507399,
+            "endId": 589738752264507401,
+            "type": 6,
+            "interaction": 0,
+            "effect": 0,
+            "description": "温度控制电路向微控制器反馈实时温度读数。",
+            "virtualParts": "温度值反馈"
+        },
+        {
+            "structureId": 589738752264507392,
+            "startId": 589738752264507401,
+            "endId": 589738752264507402,
+            "type": 1,
+            "interaction": 1,
+            "effect": 0,
+            "description": "微控制器与通讯接口之间的电气连接，用于数据交换。",
+            "virtualParts": "数据总线"
+        },
+        {
+            "structureId": 589738752264507392,
+            "startId": 589738752264507401,
+            "endId": 589738752264507402,
+            "type": 6,
+            "interaction": 1,
+            "effect": 0,
+            "description": "微控制器通过通讯接口与外部系统交换指令和状态数据。",
+            "virtualParts": "数据通讯流"
+        }
+    ],
+    "featureNet": [
+        {
+            "from": 589738752264507403,
+            "to": 589738752264507404,
+            "type": 2
+        },
+        {
+            "from": 589738752264507403,
+            "to": 589738752264507405,
+            "type": 2
+        },
+        {
+            "from": 589738752264507406,
+            "to": 589738752264507407,
+            "type": 2
+        },
+        {
+            "from": 589738752264507408,
+            "to": 589738752264507409,
+            "type": 2
+        },
+        {
+            "from": 589738752264507410,
+            "to": 589738752264507411,
+            "type": 2
+        },
+        {
+            "from": 589738752264507412,
+            "to": 589738752264507413,
+            "type": 2
+        },
+        {
+            "from": 589738752264507414,
+            "to": 589738752264507415,
+            "type": 2
+        },
+        {
+            "from": 589738752264507416,
+            "to": 589738752264507417,
+            "type": 2
+        }
+    ]
 }`;
 
 const examplePfmeaJson = `{

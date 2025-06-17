@@ -25,7 +25,7 @@ import { BaseInfoDisplay } from "@/components/fmea/BaseInfoDisplay";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Layout, Network, AlertTriangleIcon, ListTree } from "lucide-react";
+import { Layout, Network, AlertTriangleIcon, ListTree, Share2 } from "lucide-react";
 
 const nodeWidth = 256 + 20; 
 const nodeHeight = 120 + 20;
@@ -77,6 +77,9 @@ export default function FmeaVisualizerPage() {
 
   const [failureRfNodes, setFailureRfNodes] = useState<RFNode<CustomNodeData>[]>([]);
   const [failureRfEdges, setFailureRfEdges] = useState<RFEdge[]>([]);
+
+  const [interfaceRfNodes, setInterfaceRfNodes] = useState<RFNode<CustomNodeData>[]>([]);
+  const [interfaceRfEdges, setInterfaceRfEdges] = useState<RFEdge[]>([]);
   
   const [selectedNode, setSelectedNode] = useState<FmeaNode | null>(null);
   const [baseInfo, setBaseInfo] = useState<DfmeaBaseInfo | PfmeaBaseInfo | null>(null);
@@ -96,6 +99,8 @@ export default function FmeaVisualizerPage() {
         setFeatureRfNodes((nds) => applyNodeChanges(changes, nds));
       } else if (activeTab === 'failure') {
         setFailureRfNodes((nds) => applyNodeChanges(changes, nds));
+      } else if (activeTab === 'interface') {
+        setInterfaceRfNodes((nds) => applyNodeChanges(changes, nds));
       }
     },
     [activeTab] 
@@ -109,6 +114,8 @@ export default function FmeaVisualizerPage() {
         setFeatureRfEdges((eds) => applyEdgeChanges(changes, eds));
       } else if (activeTab === 'failure') {
         setFailureRfEdges((eds) => applyEdgeChanges(changes, eds));
+      } else if (activeTab === 'interface') {
+        setInterfaceRfEdges((eds) => applyEdgeChanges(changes, eds));
       }
     },
     [activeTab] 
@@ -123,6 +130,7 @@ export default function FmeaVisualizerPage() {
     setMainRfNodes([]); setMainRfEdges([]);
     setFeatureRfNodes([]); setFeatureRfEdges([]);
     setFailureRfNodes([]); setFailureRfEdges([]);
+    setInterfaceRfNodes([]); setInterfaceRfEdges([]);
     setInitialLayoutAppliedForTabs(new Set());
 
     try {
@@ -233,6 +241,40 @@ export default function FmeaVisualizerPage() {
       } else {
             setFailureRfNodes([]); setFailureRfEdges([]);
       }
+
+      // Process interface links for interface graph
+      const interfaceLinks: any[] = (parsedData as any).interface || [];
+      const interfaceApiEdges: RFEdge[] = interfaceLinks
+        .filter(link => allApiNodes.find(n => n.uuid === link.startId) && allApiNodes.find(n => n.uuid === link.endId))
+        .map(link => ({
+          id: `e_interface_${link.startId}_${link.endId}_${link.type}_${link.interaction}`,
+          source: link.startId.toString(),
+          target: link.endId.toString(),
+          label: `Interface (T:${link.type}, I:${link.interaction}) [${formatBigIntForDisplay(link.startId)}→${formatBigIntForDisplay(link.endId)}]`,
+          type: 'smoothstep',
+          style: { stroke: 'hsl(var(--chart-4))', strokeWidth: 2 },
+        }));
+
+      if (interfaceApiEdges.length > 0) {
+        const interfaceNodeIds = new Set<string>();
+        interfaceApiEdges.forEach(edge => {
+          interfaceNodeIds.add(edge.source);
+          interfaceNodeIds.add(edge.target);
+        });
+        const interfaceGraphApiNodes = allTransformedNodes.filter(node => interfaceNodeIds.has(node.id));
+        if (interfaceGraphApiNodes.length > 0) {
+            const { nodes: layoutedInterfaceNodes, edges: layoutedInterfaceEdges } = getLayoutedElements(
+                interfaceGraphApiNodes, 
+                interfaceApiEdges
+            );
+            setInterfaceRfNodes([...layoutedInterfaceNodes]);
+            setInterfaceRfEdges([...layoutedInterfaceEdges]);
+        } else {
+            setInterfaceRfNodes([]); setInterfaceRfEdges([]);
+        }
+      } else {
+            setInterfaceRfNodes([]); setInterfaceRfEdges([]);
+      }
       
       setActiveTab("main"); 
       setNeedsLayout(true); 
@@ -277,6 +319,7 @@ export default function FmeaVisualizerPage() {
     setMainRfNodes(updateNodeInList);
     setFeatureRfNodes(updateNodeInList);
     setFailureRfNodes(updateNodeInList);
+    setInterfaceRfNodes(updateNodeInList);
 
     const originalNodeInMainGraph = mainRfNodes.find(n => n.id === selectedNode.uuid.toString())?.data.originalApiNode;
     if (originalNodeInMainGraph && originalNodeInMainGraph.parentId !== selectedNode.parentId) {
@@ -320,6 +363,11 @@ export default function FmeaVisualizerPage() {
       edgesToLayout = failureRfEdges;
       setNodesFn = setFailureRfNodes;
       setEdgesFn = setFailureRfEdges;
+    } else if (activeTab === 'interface') {
+      nodesToLayout = interfaceRfNodes;
+      edgesToLayout = interfaceRfEdges;
+      setNodesFn = setInterfaceRfNodes;
+      setEdgesFn = setInterfaceRfEdges;
     }
 
     if (nodesToLayout.length > 0 && setNodesFn && setEdgesFn) {
@@ -331,7 +379,7 @@ export default function FmeaVisualizerPage() {
     } else {
       toast({ variant: "destructive", title: "Layout Error", description: `No data to layout for ${activeTab} view.` });
     }
-  }, [activeTab, mainRfNodes, mainRfEdges, featureRfNodes, featureRfEdges, failureRfNodes, failureRfEdges, toast]);
+  }, [activeTab, mainRfNodes, mainRfEdges, featureRfNodes, featureRfEdges, failureRfNodes, failureRfEdges, interfaceRfNodes, interfaceRfEdges, toast]);
   
   useEffect(() => {
     if (needsLayout) {
@@ -352,7 +400,7 @@ export default function FmeaVisualizerPage() {
     }
   };
   
-  const currentNodes = activeTab === 'main' ? mainRfNodes : activeTab === 'feature' ? featureRfNodes : failureRfNodes;
+  const currentNodes = activeTab === 'main' ? mainRfNodes : activeTab === 'feature' ? featureRfNodes : activeTab === 'failure' ? failureRfNodes : interfaceRfNodes;
   const noDataForActiveTab = currentNodes.length === 0 && !isLoading;
 
 
@@ -380,6 +428,9 @@ export default function FmeaVisualizerPage() {
             </TabsTrigger>
             <TabsTrigger value="failure" className="gap-1.5" disabled={failureRfNodes.length === 0 && failureRfEdges.length === 0 && !isLoading}>
                 <AlertTriangleIcon size={16}/>Failure Net
+            </TabsTrigger>
+            <TabsTrigger value="interface" className="gap-1.5" disabled={interfaceRfNodes.length === 0 && interfaceRfEdges.length === 0 && !isLoading}>
+                <Share2 size={16}/>Interface
             </TabsTrigger>
           </TabsList>
           
@@ -434,6 +485,24 @@ export default function FmeaVisualizerPage() {
                 <div className="w-full h-full rounded-lg shadow-lg border border-border bg-card flex items-center justify-center">
                   <p className="text-muted-foreground text-lg p-8 text-center">
                     {isLoading ? "Loading Failure Net..." : "No Failure Net data available or input FMEA JSON."}
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+            <TabsContent value="interface" className="h-full m-0">
+              {!isLoading && interfaceRfNodes.length > 0 ? (
+                <GraphViewerWrapper
+                  nodes={interfaceRfNodes}
+                  edges={interfaceRfEdges}
+                  onNodeClick={handleNodeClick}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  fitView={needsLayout && activeTab === 'interface'}
+                />
+              ) : (
+                <div className="w-full h-full rounded-lg shadow-lg border border-border bg-card flex items-center justify-center">
+                  <p className="text-muted-foreground text-lg p-8 text-center">
+                    {isLoading ? "Loading Interface..." : "No Interface data available or input FMEA JSON."}
                   </p>
                 </div>
               )}
