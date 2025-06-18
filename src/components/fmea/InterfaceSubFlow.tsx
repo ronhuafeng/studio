@@ -32,6 +32,7 @@ interface InterfaceGroupData {
 interface InterfaceSubFlowProps {
   interfaceGroup: InterfaceGroupData;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
+  onEdgeClick?: (event: React.MouseEvent, edge: Edge) => void;
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
 }
@@ -67,6 +68,7 @@ function InterfaceStructureNode({ data }: NodeProps<{ structureId: bigint; inter
 function InterfaceSubFlow({
   interfaceGroup,
   onNodeClick,
+  onEdgeClick,
   onNodesChange,
   onEdgesChange,
 }: InterfaceSubFlowProps) {
@@ -158,6 +160,7 @@ function InterfaceSubFlow({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.1 }}

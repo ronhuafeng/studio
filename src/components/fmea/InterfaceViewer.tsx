@@ -14,6 +14,7 @@ interface InterfaceViewerProps {
   edges: Edge[];
   interfaceLinks: InterfaceLink[];
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
+  onEdgeClick?: (event: React.MouseEvent, edge: Edge) => void;
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
 }
@@ -30,6 +31,7 @@ export function InterfaceViewer({
   edges,
   interfaceLinks,
   onNodeClick,
+  onEdgeClick,
   onNodesChange,
   onEdgesChange,
 }: InterfaceViewerProps) {
@@ -93,6 +95,7 @@ export function InterfaceViewer({
         <InterfaceSubFlow
           interfaceGroup={interfaceGroups[0]}
           onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
         />
@@ -128,6 +131,7 @@ export function InterfaceViewer({
               <InterfaceSubFlow
                 interfaceGroup={group}
                 onNodeClick={onNodeClick}
+                onEdgeClick={onEdgeClick}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
               />
