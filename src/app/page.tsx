@@ -1,9 +1,8 @@
-
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
 import type { Node as RFNode, Edge as RFEdge, OnNodesChange, OnEdgesChange } from "reactflow";
-import { applyNodeChanges, applyEdgeChanges, Position } from "reactflow";
+import { applyNodeChanges, applyEdgeChanges, Position, MarkerType } from "reactflow";
 import Dagre from "@dagrejs/dagre";
 
 import type {
@@ -22,6 +21,7 @@ import { DataInputPanel } from "@/components/fmea/DataInputPanel";
 import { parseJsonWithBigInt, formatBigIntForDisplay } from "@/lib/bigint-utils";
 import { GraphViewerWrapper } from "@/components/fmea/GraphViewer";
 import { PropertiesEditorPanel } from "@/components/fmea/PropertiesEditorPanel";
+import { UnifiedPropertiesEditor } from "@/components/fmea/UnifiedPropertiesEditor";
 import { BaseInfoDisplay } from "@/components/fmea/BaseInfoDisplay";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -86,6 +86,7 @@ export default function FmeaVisualizerPage() {
   const [interfaceRfEdges, setInterfaceRfEdges] = useState<RFEdge[]>([]);
   
   const [selectedNode, setSelectedNode] = useState<FmeaNode | null>(null);
+  const [selectedInterfaceLink, setSelectedInterfaceLink] = useState<InterfaceLink | null>(null);
   const [baseInfo, setBaseInfo] = useState<DfmeaBaseInfo | PfmeaBaseInfo | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -130,6 +131,7 @@ export default function FmeaVisualizerPage() {
     setRawJson(json);
     setApiResponseType(type);
     setSelectedNode(null);
+    setSelectedInterfaceLink(null);
     setBaseInfo(null);
     setMainRfNodes([]); setMainRfEdges([]);
     setFeatureRfNodes([]); setFeatureRfEdges([]);
@@ -252,28 +254,35 @@ export default function FmeaVisualizerPage() {
       const interfaceLinks: InterfaceLink[] = (parsedData as any).interface || [];
       const interfaceApiEdges: RFEdge[] = interfaceLinks
         .filter(link => allApiNodes.find(n => n.uuid === link.startId) && allApiNodes.find(n => n.uuid === link.endId))
-        .map(link => ({
-          id: `e_interface_${link.structureId}_${link.startId}_${link.endId}_${link.type}_${link.interaction}`,
-          source: link.startId.toString(),
-          target: link.endId.toString(),
-          label: link.description,
-          type: 'smoothstep',
-          style: { stroke: link.effect === 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))', strokeWidth: 2 },
-          markerEnd: {
-            type: 'arrowclosed',
-            width: 10,
-            height: 10,
-            color: 'hsl(var(--chart-4))',
-          },
-          ...(link.interaction === 1 && {
-            markerStart: {
-              type: 'arrowclosed',
+        .map(link => {
+          const edgeColor = link.effect === 0 ? '#4ade80' : '#ef4444';
+          return {
+            id: `e_interface_${link.structureId}_${link.startId}_${link.endId}_${link.type}_${link.interaction}`,
+            source: link.startId.toString(),
+            target: link.endId.toString(),
+            label: link.description,
+            type: 'smoothstep',
+            style: { 
+              stroke: edgeColor, // Green for normal (0), Red for adverse (1)
+              strokeWidth: 3,
+              strokeDasharray: link.interaction === 1 ? '8,4' : undefined
+            },
+            markerEnd: {
+              type: MarkerType.Arrow,
               width: 10,
               height: 10,
-              color: 'hsl(var(--chart-4))',
+              color: edgeColor,
             },
-          }),
-        }));
+            ...(link.interaction === 1 && {
+              markerStart: {
+                type: MarkerType.Arrow,
+                width: 10,
+                height: 10,
+                color: edgeColor,
+              },
+            }),
+          };
+        });
 
       if (interfaceApiEdges.length > 0) {
         const interfaceNodeIds = new Set<string>();
@@ -318,12 +327,57 @@ export default function FmeaVisualizerPage() {
 
   const handleNodeClick = useCallback((event: React.MouseEvent, node: RFNode<CustomNodeData>) => {
     setSelectedNode(node.data.originalApiNode);
+    setSelectedInterfaceLink(null); // Clear interface link selection when node is selected
   }, []);
+
+  const handleEdgeClick = useCallback((event: React.MouseEvent, edge: RFEdge) => {
+    // Only handle interface edge clicks in the interface tab
+    if (activeTab === 'interface' && edge.id.includes('interface_')) {
+      // Find the corresponding interface link
+      const edgeIdParts = edge.id.split('_');
+      if (edgeIdParts.length >= 6) {
+        const structureId = BigInt(edgeIdParts[2]);
+        const startId = BigInt(edgeIdParts[3]);
+        const endId = BigInt(edgeIdParts[4]);
+        const type = parseInt(edgeIdParts[5]);
+        const interaction = parseInt(edgeIdParts[6]);
+        
+        const interfaceLink = interfaceLinks.find(link => 
+          link.structureId === structureId &&
+          link.startId === startId &&
+          link.endId === endId &&
+          link.type === type &&
+          link.interaction === interaction
+        );
+        
+        if (interfaceLink) {
+          setSelectedInterfaceLink(interfaceLink);
+          setSelectedNode(null); // Clear node selection when interface link is selected
+        }
+      }
+    }
+  }, [activeTab, interfaceLinks]);
 
   const handlePropertyChange = useCallback((updatedNodeData: FmeaNode) => {
     setSelectedNode(updatedNodeData);
   }, []);
-  
+
+  const handleInterfaceLinkPropertyChange = useCallback((updatedInterfaceLink: InterfaceLink) => {
+    setSelectedInterfaceLink(updatedInterfaceLink);
+    // Update the interface link in the interfaceLinks array
+    setInterfaceLinks(prevLinks => 
+      prevLinks.map(link => 
+        link.structureId === updatedInterfaceLink.structureId &&
+        link.startId === updatedInterfaceLink.startId &&
+        link.endId === updatedInterfaceLink.endId &&
+        link.type === updatedInterfaceLink.type &&
+        link.interaction === updatedInterfaceLink.interaction
+          ? updatedInterfaceLink
+          : link
+      )
+    );
+  }, []);
+
   const handleUpdateNodeInGraph = useCallback(() => {
     if (!selectedNode) return;
 
@@ -368,6 +422,51 @@ export default function FmeaVisualizerPage() {
     
     toast({ title: "Node Updated", description: `Node ${selectedNode.uuid} properties updated in graph views.` });
   }, [selectedNode, mainRfNodes, toast]);
+
+  const handleUpdateInterfaceLinkInGraph = useCallback(() => {
+    if (!selectedInterfaceLink) return;
+    
+    console.log('Updating interface link:', selectedInterfaceLink);
+    console.log('Effect value:', selectedInterfaceLink.effect);
+    console.log('Expected color:', selectedInterfaceLink.effect === 0 ? '#4ade80 (green)' : '#ef4444 (red)');
+    
+    // Update the interface edges in the graph
+    setInterfaceRfEdges(prevEdges => 
+      prevEdges.map(edge => {
+        if (edge.id.includes(`interface_${selectedInterfaceLink.structureId}`) &&
+            edge.source === selectedInterfaceLink.startId.toString() &&
+            edge.target === selectedInterfaceLink.endId.toString()) {
+          const updatedEdgeColor = selectedInterfaceLink.effect === 0 ? '#4ade80' : '#ef4444';
+          return {
+            ...edge,
+            label: selectedInterfaceLink.description,
+            style: { 
+              ...edge.style,
+              stroke: updatedEdgeColor, // Green for normal (0), Red for adverse (1)
+              strokeWidth: 3,
+              strokeDasharray: selectedInterfaceLink.interaction === 1 ? '8,4' : undefined
+            },
+            markerEnd: {
+              type: MarkerType.Arrow,
+              width: 10,
+              height: 10,
+              color: updatedEdgeColor
+            },
+            ...(selectedInterfaceLink.interaction === 1 && {
+              markerStart: {
+                type: MarkerType.Arrow,
+                width: 10,
+                height: 10,
+                color: updatedEdgeColor
+              }
+            })
+          };
+        }
+        return edge;
+      })
+    );
+    toast({ title: "Success", description: `Interface link updated successfully. Effect: ${selectedInterfaceLink.effect === 0 ? 'Normal (Green)' : 'Adverse (Red)'}` });
+  }, [selectedInterfaceLink, toast]);
 
   const triggerLayout = useCallback(() => {
     let nodesToLayout: RFNode<CustomNodeData>[] = [];
@@ -468,6 +567,7 @@ export default function FmeaVisualizerPage() {
                   nodes={mainRfNodes}
                   edges={mainRfEdges}
                   onNodeClick={handleNodeClick}
+                  onEdgeClick={handleEdgeClick}
                   onNodesChange={onNodesChange}
                   onEdgesChange={onEdgesChange}
                   fitView={needsLayout && activeTab === 'main'}
@@ -486,6 +586,7 @@ export default function FmeaVisualizerPage() {
                   nodes={featureRfNodes}
                   edges={featureRfEdges}
                   onNodeClick={handleNodeClick}
+                  onEdgeClick={handleEdgeClick}
                   onNodesChange={onNodesChange}
                   onEdgesChange={onEdgesChange}
                   fitView={needsLayout && activeTab === 'feature'}
@@ -504,6 +605,7 @@ export default function FmeaVisualizerPage() {
                   nodes={failureRfNodes}
                   edges={failureRfEdges}
                   onNodeClick={handleNodeClick}
+                  onEdgeClick={handleEdgeClick}
                   onNodesChange={onNodesChange}
                   onEdgesChange={onEdgesChange}
                   fitView={needsLayout && activeTab === 'failure'}
@@ -524,6 +626,7 @@ export default function FmeaVisualizerPage() {
                   edges={interfaceRfEdges}
                   interfaceLinks={interfaceLinks}
                   onNodeClick={handleNodeClick}
+                  onEdgeClick={handleEdgeClick}
                   onNodesChange={onNodesChange}
                   onEdgesChange={onEdgesChange}
                 />
@@ -540,11 +643,14 @@ export default function FmeaVisualizerPage() {
       </div>
 
       <div className="md:w-1/4 lg:w-1/5 min-w-[300px] max-h-full overflow-y-auto">
-        <PropertiesEditorPanel
+        <UnifiedPropertiesEditor
           nodeData={selectedNode}
+          interfaceLinkData={selectedInterfaceLink}
           apiResponseType={apiResponseType}
           onPropertyChange={handlePropertyChange}
+          onInterfaceLinkPropertyChange={handleInterfaceLinkPropertyChange}
           onUpdateNode={handleUpdateNodeInGraph}
+          onUpdateInterfaceLink={handleUpdateInterfaceLinkInGraph}
           disabled={isLoading || noDataForActiveTab}
         />
       </div>

@@ -20,6 +20,7 @@ interface GraphViewerProps {
   nodes: Node[];
   edges: Edge[];
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
+  onEdgeClick?: (event: React.MouseEvent, edge: Edge) => void;
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
   fitView?: boolean;
@@ -33,6 +34,7 @@ export function GraphViewer({
   nodes,
   edges,
   onNodeClick,
+  onEdgeClick,
   onNodesChange,
   onEdgesChange,
   fitView,
@@ -48,6 +50,7 @@ export function GraphViewer({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         nodeTypes={nodeTypes}
         fitView={fitView}
         fitViewOptions={{ padding: 0.2 }}
