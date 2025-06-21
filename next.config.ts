@@ -1,7 +1,13 @@
-import type {NextConfig} from 'next';
+// next.config.ts
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Allow both the root and every subdomain of cloudworkstations.dev
+  allowedDevOrigins: [
+    'cloudworkstations.dev',
+    '*.cloudworkstations.dev',
+  ],
+
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -18,6 +24,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig
