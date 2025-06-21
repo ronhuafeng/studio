@@ -27,7 +27,17 @@ import { BaseInfoDisplay } from "@/components/fmea/BaseInfoDisplay";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Layout, Network, AlertTriangleIcon, ListTree, Share2, CheckCircle2 } from "lucide-react";
+import {
+  Layout,
+  Network,
+  AlertTriangleIcon,
+  ListTree,
+  Share2,
+  CheckCircle2,
+  Expand,
+  Shrink,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import { InterfaceViewer } from "@/components/fmea/InterfaceViewer";
 import { RuleVerificationPanel } from "@/components/fmea/RuleVerificationPanel";
@@ -97,6 +107,7 @@ export default function FmeaVisualizerPage() {
   const [needsLayout, setNeedsLayout] = useState(true);
   const [activeTab, setActiveTab] = useState<string>("main");
   const [initialLayoutAppliedForTabs, setInitialLayoutAppliedForTabs] = useState<Set<string>>(new Set());
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
 
   const onNodesChange: OnNodesChange = useCallback(
@@ -526,6 +537,14 @@ export default function FmeaVisualizerPage() {
     }
   }, [activeTab, mainRfNodes, mainRfEdges, featureRfNodes, featureRfEdges, failureRfNodes, failureRfEdges, interfaceRfNodes, interfaceRfEdges, toast]);
   
+  const toggleFullScreen = useCallback(() => {
+    setIsFullScreen(prev => !prev);
+    // Refit the view after the container resizes
+    setTimeout(() => {
+      setNeedsLayout(true);
+    }, 50);
+  }, []);
+
   useEffect(() => {
     if (needsLayout) {
       const timer = setTimeout(() => setNeedsLayout(false), 0);
@@ -547,11 +566,15 @@ export default function FmeaVisualizerPage() {
   
   const currentNodes = activeTab === 'main' ? mainRfNodes : activeTab === 'feature' ? featureRfNodes : activeTab === 'failure' ? failureRfNodes : interfaceRfNodes;
   const noDataForActiveTab = currentNodes.length === 0 && !isLoading;
+  const isGraphTabActive = ['main', 'feature', 'failure', 'interface'].includes(activeTab);
 
 
   return (
     <div className="flex flex-col md:flex-row h-screen max-h-screen p-4 gap-4 bg-background">
-      <div className="md:w-1/4 lg:w-1/5 flex flex-col gap-4 min-w-[300px] max-h-full overflow-y-auto">
+      <div className={cn(
+        "md:w-1/4 lg:w-1/5 flex flex-col gap-4 min-w-[300px] max-h-full overflow-y-auto",
+        isFullScreen && "hidden"
+      )}>
         <DataInputPanel onJsonSubmit={handleJsonSubmit} disabled={isLoading} />
         {baseInfo && <BaseInfoDisplay baseInfo={baseInfo} />}
          <Button 
@@ -564,7 +587,10 @@ export default function FmeaVisualizerPage() {
         </Button>
       </div>
 
-      <div className="flex-grow h-[calc(100%-2rem)] md:h-full md:w-1/2 lg:w-3/5 order-first md:order-none flex flex-col">
+      <div className={cn(
+        "flex-grow h-[calc(100%-2rem)] md:h-full md:w-1/2 lg:w-3/5 order-first md:order-none flex flex-col",
+        isFullScreen && "fixed inset-0 z-50 bg-background p-4"
+      )}>
         <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col h-full">
           <TabsList className="mb-2 shrink-0">
             <TabsTrigger value="main" className="gap-1.5"><ListTree size={16}/>Main Graph</TabsTrigger>
@@ -582,7 +608,18 @@ export default function FmeaVisualizerPage() {
             </TabsTrigger>
           </TabsList>
           
-          <div className="flex-grow min-h-0">
+          <div className="flex-grow min-h-0 relative">
+            {isGraphTabActive && (
+              <Button
+                onClick={toggleFullScreen}
+                variant="ghost"
+                size="icon"
+                className="absolute top-1 right-1 z-20 bg-card/60 hover:bg-card rounded-full"
+                title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+              >
+                {isFullScreen ? <Shrink size={16} /> : <Expand size={16} />}
+              </Button>
+            )}
             <TabsContent value="main" className="h-full m-0">
               {!isLoading && mainRfNodes.length > 0 ? (
                 <GraphViewerWrapper
@@ -680,7 +717,10 @@ export default function FmeaVisualizerPage() {
         </Tabs>
       </div>
 
-      <div className="md:w-1/4 lg:w-1/5 min-w-[300px] max-h-full overflow-y-auto">
+      <div className={cn(
+        "md:w-1/4 lg:w-1/5 min-w-[300px] max-h-full overflow-y-auto",
+        isFullScreen && "hidden"
+      )}>
         <UnifiedPropertiesEditor
           nodeData={selectedNode}
           interfaceLinkData={selectedInterfaceLink}
