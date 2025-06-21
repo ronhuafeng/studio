@@ -578,7 +578,7 @@ export default function FmeaVisualizerPage() {
                 <Share2 size={16}/>Interface
             </TabsTrigger>
             <TabsTrigger value="verification" className="gap-1.5" disabled={!rawJson || isLoading}>
-                <CheckCircle2 size={16}/>Verification
+                <CheckCircle2 size={16}/>规则验证
             </TabsTrigger>
           </TabsList>
           

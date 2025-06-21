@@ -85,12 +85,12 @@ export function RuleVerificationPanel({ fmeaJson, fmeaType, disabled }: RuleVeri
   return (
     <>
       <div className="mb-6">
-        <h2 className="text-2xl font-semibold leading-none tracking-tight font-headline">Data Verification</h2>
-        <p className="text-sm text-muted-foreground mt-1.5">Status of data integrity and best practices.</p>
+        <h2 className="text-2xl font-semibold leading-none tracking-tight font-headline">规则验证</h2>
+        <p className="text-sm text-muted-foreground mt-1.5">数据完整性和最佳实践的状态。</p>
         <div className="flex items-center space-x-2 pt-3">
-            {summary.error > 0 && <Badge variant="destructive">{summary.error} Error{summary.error > 1 ? 's' : ''}</Badge>}
-            {summary.warning > 0 && <Badge variant="outline" className="border-yellow-500 text-yellow-600">{summary.warning} Warning{summary.warning > 1 ? 's' : ''}</Badge>}
-            {summary.correct > 0 && <Badge variant="secondary" className="border-green-500 text-green-600">{summary.correct} Ok</Badge>}
+            {summary.error > 0 && <Badge variant="destructive">{summary.error} 错误</Badge>}
+            {summary.warning > 0 && <Badge variant="outline" className="border-yellow-500 text-yellow-600">{summary.warning} 警告</Badge>}
+            {summary.correct > 0 && <Badge variant="secondary" className="border-green-500 text-green-600">{summary.correct} 正确</Badge>}
         </div>
       </div>
       <TooltipProvider>
