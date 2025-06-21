@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
@@ -18,7 +19,7 @@ import type {
 } from "@/types/fmea";
 
 import { DataInputPanel } from "@/components/fmea/DataInputPanel";
-import { parseJsonWithBigInt, formatBigIntForDisplay } from "@/lib/bigint-utils";
+import { parseJsonWithBigInt } from "@/lib/bigint-utils";
 import { GraphViewerWrapper } from "@/components/fmea/GraphViewer";
 import { PropertiesEditorPanel } from "@/components/fmea/PropertiesEditorPanel";
 import { UnifiedPropertiesEditor } from "@/components/fmea/UnifiedPropertiesEditor";
@@ -29,6 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Layout, Network, AlertTriangleIcon, ListTree, Share2 } from "lucide-react";
 
 import { InterfaceViewer } from "@/components/fmea/InterfaceViewer";
+import { RuleVerificationPanel } from "@/components/fmea/RuleVerificationPanel";
 
 
 const nodeWidth = 256 + 20; 
@@ -37,7 +39,7 @@ const nodeHeight = 120 + 20;
 const getLayoutedElements = (initialNodes: RFNode<CustomNodeData>[], initialEdges: RFEdge[], direction = "LR") => {
   const dagreGraphInstance = new Dagre.graphlib.Graph();
   dagreGraphInstance.setDefaultEdgeLabel(() => ({}));
-  dagreGraphInstance.setGraph({ rankdir: direction, nodesep: 80, ranksep: 120 });
+  dagreGraphInstance.setGraph({ rankdir: direction, nodesep: 100, ranksep: 150 });
 
   const layoutableNodes = initialNodes.map(n => ({ ...n })); 
   const layoutableEdges = initialEdges.map(e => ({ ...e })); 
@@ -65,7 +67,8 @@ const getLayoutedElements = (initialNodes: RFNode<CustomNodeData>[], initialEdge
     };
   });
 
-  return { nodes: newNodes, edges: [...layoutableEdges] };
+  // Return new array instances to ensure React Flow detects changes
+  return { nodes: [...newNodes], edges: [...layoutableEdges] };
 };
 
 
@@ -140,9 +143,13 @@ export default function FmeaVisualizerPage() {
     setInitialLayoutAppliedForTabs(new Set());
 
     try {
-      const parsedData = parseJsonWithBigInt(json) as FmeaApiResponse;
+      const parsedData: FmeaApiResponse = parseJsonWithBigInt(json);
       
-      const allApiNodes: BaseApiNode[] = parsedData.nodes || [];
+      const allApiNodes: BaseApiNode[] = (parsedData.nodes || []).map(node => ({
+        ...node,
+        uuid: String(node.uuid),
+        parentId: String(node.parentId),
+      }));
       
       if ((parsedData as any).baseInfo) {
         setBaseInfo((parsedData as any).baseInfo);
@@ -160,7 +167,7 @@ export default function FmeaVisualizerPage() {
       }));
 
       const parentChildEdges: RFEdge[] = allApiNodes
-        .filter(node => node.parentId !== BigInt(-1) && allApiNodes.find(n => n.uuid === node.parentId))
+        .filter(node => node.parentId !== "-1" && node.parentId !== node.uuid && allApiNodes.find(n => n.uuid === node.parentId))
         .map(node => ({
           id: `e_parent_${node.parentId}_${node.uuid}`,
           source: node.parentId.toString(),
@@ -182,14 +189,18 @@ export default function FmeaVisualizerPage() {
       }
 
 
-      const featureNetLinks: NetworkLink[] = (parsedData as any).featureNet || [];
+      const featureNetLinks: NetworkLink[] = ((parsedData as any).featureNet || []).map((link: any) => ({
+        ...link,
+        from: String(link.from),
+        to: String(link.to),
+      }));
       const featureNetApiEdges: RFEdge[] = featureNetLinks
         .filter(link => allApiNodes.find(n => n.uuid === link.from) && allApiNodes.find(n => n.uuid === link.to))
         .map(link => ({
           id: `e_feature_${link.from}_${link.to}_${link.type}`,
           source: link.from.toString(),
           target: link.to.toString(),
-          label: `Feature (${link.type}) [${formatBigIntForDisplay(link.from)}→${formatBigIntForDisplay(link.to)}]`,
+          label: `Feature (${link.type}) [${link.from}→${link.to}]`,
           type: 'smoothstep',
           style: { stroke: 'hsl(var(--chart-2))', strokeWidth: 2 },
         }));
@@ -215,14 +226,18 @@ export default function FmeaVisualizerPage() {
             setFeatureRfNodes([]); setFeatureRfEdges([]);
       }
       
-      const failureNetLinks: NetworkLink[] = (parsedData as any).failureNet || [];
+      const failureNetLinks: NetworkLink[] = ((parsedData as any).failureNet || []).map((link: any) => ({
+        ...link,
+        from: String(link.from),
+        to: String(link.to),
+      }));
       const failureNetApiEdges: RFEdge[] = failureNetLinks
         .filter(link => allApiNodes.find(n => n.uuid === link.from) && allApiNodes.find(n => n.uuid === link.to))
         .map(link => ({
           id: `e_failure_${link.from}_${link.to}_${link.type}`,
           source: link.from.toString(),
           target: link.to.toString(),
-          label: `Failure (${link.type}) [${formatBigIntForDisplay(link.from)}→${formatBigIntForDisplay(link.to)}]`,
+          label: `Failure (${link.type}) [${link.from}→${link.to}]`,
           type: 'smoothstep',
           style: { stroke: 'hsl(var(--destructive))', strokeWidth: 2 },
         }));
@@ -248,10 +263,14 @@ export default function FmeaVisualizerPage() {
             setFailureRfNodes([]); setFailureRfEdges([]);
       }
 
-      // In the handleJsonSubmit function, replace the interface processing section:
-
       // Process interface links for interface graph
-      const interfaceLinks: InterfaceLink[] = (parsedData as any).interface || [];
+      const interfaceLinks: InterfaceLink[] = ((parsedData as any).interface || []).map((link: any) => ({
+        ...link,
+        structureId: String(link.structureId),
+        startId: String(link.startId),
+        endId: String(link.endId),
+      }));
+      
       const interfaceApiEdges: RFEdge[] = interfaceLinks
         .filter(link => allApiNodes.find(n => n.uuid === link.startId) && allApiNodes.find(n => n.uuid === link.endId))
         .map(link => {
@@ -336,9 +355,9 @@ export default function FmeaVisualizerPage() {
       // Find the corresponding interface link
       const edgeIdParts = edge.id.split('_');
       if (edgeIdParts.length >= 6) {
-        const structureId = BigInt(edgeIdParts[2]);
-        const startId = BigInt(edgeIdParts[3]);
-        const endId = BigInt(edgeIdParts[4]);
+        const structureId = edgeIdParts[2];
+        const startId = edgeIdParts[3];
+        const endId = edgeIdParts[4];
         const type = parseInt(edgeIdParts[5]);
         const interaction = parseInt(edgeIdParts[6]);
         
@@ -406,7 +425,7 @@ export default function FmeaVisualizerPage() {
     if (originalNodeInMainGraph && originalNodeInMainGraph.parentId !== selectedNode.parentId) {
       setMainRfEdges(prevEdges => {
         let newEdges = prevEdges.filter(edge => !(edge.target === selectedNode.uuid.toString() && edge.id.startsWith('e_parent_')));
-        if (selectedNode.parentId !== BigInt(-1) && mainRfNodes.some(n => n.id === selectedNode.parentId.toString())) {
+        if (selectedNode.parentId !== "-1" && selectedNode.parentId !== selectedNode.uuid && mainRfNodes.some(n => n.id === selectedNode.parentId.toString())) {
           newEdges.push({
             id: `e_parent_${selectedNode.parentId}_${selectedNode.uuid}`,
             source: selectedNode.parentId.toString(),
@@ -535,6 +554,13 @@ export default function FmeaVisualizerPage() {
       <div className="md:w-1/4 lg:w-1/5 flex flex-col gap-4 min-w-[300px] max-h-full overflow-y-auto">
         <DataInputPanel onJsonSubmit={handleJsonSubmit} disabled={isLoading} />
         {baseInfo && <BaseInfoDisplay baseInfo={baseInfo} />}
+        {rawJson && apiResponseType && (
+          <RuleVerificationPanel 
+            fmeaJson={rawJson} 
+            fmeaType={apiResponseType} 
+            disabled={isLoading}
+          />
+        )}
          <Button 
             onClick={triggerLayout} 
             variant="outline" 
@@ -618,7 +644,6 @@ export default function FmeaVisualizerPage() {
                 </div>
               )}
             </TabsContent>
-            // Replace the interface TabsContent section:
             <TabsContent value="interface" className="h-full m-0">
               {!isLoading && interfaceRfNodes.length > 0 ? (
                 <InterfaceViewer
