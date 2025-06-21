@@ -168,7 +168,7 @@ const rules: FmeaRule[] = [
       
       if (subsystemNodes.length > 1) {
         const details = `Multiple subsystems found (${subsystemNodes.length}). It is recommended to have only one. UUIDs: ${subsystemNodes.map(n => n.uuid).join(', ')}`;
-        return { status: 'warning', details };
+        return { status: 'error', details };
       }
       
       return { status: 'correct' };
