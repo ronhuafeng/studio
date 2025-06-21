@@ -153,6 +153,27 @@ const rules: FmeaRule[] = [
       return { status: 'correct' };
     },
   },
+  {
+    id: 'single-subsystem',
+    description: 'For DFMEA, there should ideally be only one subsystem.',
+    check: (data, type) => {
+      if (type !== 'dfmea') {
+        return { status: 'info', details: 'Rule not applicable for this FMEA type.' };
+      }
+      if (!data.nodes || data.nodes.length === 0) {
+        return { status: 'info', details: 'No nodes to check.' };
+      }
+
+      const subsystemNodes = data.nodes.filter(n => n.nodeType === 'subsystem');
+      
+      if (subsystemNodes.length > 1) {
+        const details = `Multiple subsystems found (${subsystemNodes.length}). It is recommended to have only one. UUIDs: ${subsystemNodes.map(n => n.uuid).join(', ')}`;
+        return { status: 'warning', details };
+      }
+      
+      return { status: 'correct' };
+    },
+  },
 ];
 
 export function runAllRules(data: FmeaApiResponse, type: ApiResponseType | null): RuleResult[] {
