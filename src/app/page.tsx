@@ -27,7 +27,7 @@ import { BaseInfoDisplay } from "@/components/fmea/BaseInfoDisplay";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Layout, Network, AlertTriangleIcon, ListTree, Share2 } from "lucide-react";
+import { Layout, Network, AlertTriangleIcon, ListTree, Share2, CheckCircle2 } from "lucide-react";
 
 import { InterfaceViewer } from "@/components/fmea/InterfaceViewer";
 import { RuleVerificationPanel } from "@/components/fmea/RuleVerificationPanel";
@@ -554,13 +554,6 @@ export default function FmeaVisualizerPage() {
       <div className="md:w-1/4 lg:w-1/5 flex flex-col gap-4 min-w-[300px] max-h-full overflow-y-auto">
         <DataInputPanel onJsonSubmit={handleJsonSubmit} disabled={isLoading} />
         {baseInfo && <BaseInfoDisplay baseInfo={baseInfo} />}
-        {rawJson && apiResponseType && (
-          <RuleVerificationPanel 
-            fmeaJson={rawJson} 
-            fmeaType={apiResponseType} 
-            disabled={isLoading}
-          />
-        )}
          <Button 
             onClick={triggerLayout} 
             variant="outline" 
@@ -583,6 +576,9 @@ export default function FmeaVisualizerPage() {
             </TabsTrigger>
             <TabsTrigger value="interface" className="gap-1.5" disabled={interfaceRfNodes.length === 0 && interfaceRfEdges.length === 0 && !isLoading}>
                 <Share2 size={16}/>Interface
+            </TabsTrigger>
+            <TabsTrigger value="verification" className="gap-1.5" disabled={!rawJson || isLoading}>
+                <CheckCircle2 size={16}/>Verification
             </TabsTrigger>
           </TabsList>
           
@@ -659,6 +655,23 @@ export default function FmeaVisualizerPage() {
                 <div className="w-full h-full rounded-lg shadow-lg border border-border bg-card flex items-center justify-center">
                   <p className="text-muted-foreground text-lg p-8 text-center">
                     {isLoading ? "Loading Interface..." : "No Interface data available or input FMEA JSON."}
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+            <TabsContent value="verification" className="h-full m-0">
+              {!isLoading && rawJson && apiResponseType ? (
+                <div className="w-full h-full rounded-lg shadow-lg border border-border bg-card p-6 overflow-y-auto">
+                  <RuleVerificationPanel
+                    fmeaJson={rawJson}
+                    fmeaType={apiResponseType}
+                    disabled={isLoading}
+                  />
+                </div>
+              ) : (
+                <div className="w-full h-full rounded-lg shadow-lg border border-border bg-card flex items-center justify-center">
+                  <p className="text-muted-foreground text-lg p-8 text-center">
+                    {isLoading ? "Loading..." : "Input FMEA JSON to see verification results."}
                   </p>
                 </div>
               )}
