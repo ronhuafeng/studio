@@ -89,7 +89,7 @@ export function RuleVerificationPanel({ fmeaJson, fmeaType, disabled }: RuleVeri
         <p className="text-sm text-muted-foreground mt-1.5">数据完整性和最佳实践的状态。</p>
         <div className="flex items-center space-x-2 pt-3">
             {summary.error > 0 && <Badge variant="destructive">{summary.error} 错误</Badge>}
-            {summary.warning > 0 && <Badge variant="outline" className="border-yellow-500/80 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">{summary.warning} 警告</Badge>}
+            <Badge variant="outline" className="border-yellow-500/80 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">{summary.warning} 警告</Badge>
             {summary.correct > 0 && <Badge variant="outline" className="border-green-500/80 bg-green-500/10 text-green-700 dark:text-green-400">{summary.correct} 正确</Badge>}
         </div>
       </div>
