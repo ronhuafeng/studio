@@ -83,7 +83,7 @@ const rules: FmeaRule[] = [
       });
 
       if (failuresWithoutActions.length > 0) {
-        const details = `Failures without actions: ${failuresWithoutActions.map(n => n.uuid.toString()).slice(0,3).join(', ')}${failuresWithoutActions.length > 3 ? '...' : ''}`;
+        const details = `Failures without actions: ${failuresWithoutActions.map(n => n.uuid).slice(0,3).join(', ')}${failuresWithoutActions.length > 3 ? '...' : ''}`;
         return { status: 'warning', details };
       }
       
@@ -112,6 +112,41 @@ const rules: FmeaRule[] = [
 
       if (failuresWithoutSeverity.length > 0) {
         const details = `Failures without severity: ${failuresWithoutSeverity.map(n => n.uuid).slice(0,3).join(', ')}${failuresWithoutSeverity.length > 3 ? '...' : ''}`;
+        return { status: 'warning', details };
+      }
+      
+      return { status: 'correct' };
+    },
+  },
+  {
+    id: 'system-has-func-or-cha',
+    description: 'For DFMEA, `system` nodes should have at least one `func` or `cha` child.',
+    check: (data, type) => {
+      if (type !== 'dfmea') {
+        return { status: 'info', details: 'Rule not applicable for this FMEA type.' };
+      }
+      if (!data.nodes || data.nodes.length === 0) {
+        return { status: 'info', details: 'No nodes to check.' };
+      }
+
+      const systemNodes = data.nodes.filter(n => n.nodeType === 'system');
+      if (systemNodes.length === 0) {
+        return { status: 'info', details: 'No system nodes found.' };
+      }
+      
+      const parentsWithFuncOrCha = new Set<string>();
+      data.nodes.forEach(node => {
+          if ((node.nodeType === 'func' || node.nodeType === 'cha') && node.parentId !== '-1') {
+              parentsWithFuncOrCha.add(node.parentId);
+          }
+      });
+      
+      const systemsWithoutFuncOrCha = systemNodes.filter(systemNode => {
+        return !parentsWithFuncOrCha.has(systemNode.uuid);
+      });
+
+      if (systemsWithoutFuncOrCha.length > 0) {
+        const details = `建议 system 也拥有功能或特性 (UUIDs: ${systemsWithoutFuncOrCha.map(n => n.uuid).join(', ')})`;
         return { status: 'warning', details };
       }
       
