@@ -69,7 +69,10 @@ export function RuleVerificationPanel({ fmeaJson, fmeaType }: RuleVerificationPa
   const filteredGroups = useMemo(() => {
     if (parseError) return [];
     if (filterStatus === 'all') return resultGroups;
-    return resultGroups.filter(group => (group.summary[filterStatus] || 0) > 0);
+    return resultGroups.map(group => ({
+      ...group,
+      rules: group.rules.filter(rule => rule.status === filterStatus)
+    })).filter(group => group.rules.length > 0);
   }, [resultGroups, filterStatus, parseError]);
 
 
@@ -92,14 +95,14 @@ export function RuleVerificationPanel({ fmeaJson, fmeaType }: RuleVerificationPa
             全部 {totalRules}
           </Badge>
            <Badge
-            onClick={() => setFilterStatus('error')}
+            onClick={() => totalSummary.error > 0 && setFilterStatus('error')}
             variant="destructive"
             className={cn('cursor-pointer transition-all hover:opacity-80', {'opacity-50 cursor-not-allowed': totalSummary.error === 0}, filterStatus === 'error' && 'ring-2 ring-destructive/80 ring-offset-2 ring-offset-background')}
           >
             错误 {totalSummary.error}
           </Badge>
           <Badge
-            onClick={() => setFilterStatus('warning')}
+            onClick={() => totalSummary.warning > 0 && setFilterStatus('warning')}
             className={cn(
               'cursor-pointer transition-all hover:opacity-80',
               'border-yellow-500/80 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/20',
@@ -110,7 +113,7 @@ export function RuleVerificationPanel({ fmeaJson, fmeaType }: RuleVerificationPa
             警告 {totalSummary.warning}
           </Badge>
            <Badge
-            onClick={() => setFilterStatus('success')}
+            onClick={() => totalSummary.success > 0 && setFilterStatus('success')}
             className={cn(
               'cursor-pointer transition-all hover:opacity-80',
               'border-green-500/80 bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20',
@@ -126,6 +129,10 @@ export function RuleVerificationPanel({ fmeaJson, fmeaType }: RuleVerificationPa
       <div className="space-y-2">
         {parseError ? (
            <p className="text-destructive">JSON 解析错误: {parseError}</p>
+        ) : filteredGroups.length === 0 && filterStatus !== 'all' ? (
+           <div className="text-center text-muted-foreground py-8">
+              <p>没有找到状态为 “{statusConfig[filterStatus].label}” 的规则。</p>
+            </div>
         ) : filteredGroups.map((group) => {
           const groupStatusConfig = statusConfig[group.overallStatus];
           return (
@@ -150,7 +157,7 @@ export function RuleVerificationPanel({ fmeaJson, fmeaType }: RuleVerificationPa
                     <li key={rule.id} className="flex items-start space-x-4">
                       <itemStatusConfig.icon className={cn("w-5 h-5 flex-shrink-0 mt-0.5", itemStatusConfig.color)} />
                       <div className="flex-1">
-                        <p className={cn("text-sm", rule.status !== 'success' && 'text-foreground', rule.status === 'success' && 'text-muted-foreground')}>
+                        <div className={cn("text-sm", rule.status !== 'success' && 'text-foreground', rule.status === 'success' && 'text-muted-foreground')}>
                           <code className="text-xs bg-gray-200 dark:bg-gray-700 rounded px-1 py-0.5 mr-2">{rule.id}</code>
                           {rule.description}
                           {rule.remark && (
@@ -165,7 +172,7 @@ export function RuleVerificationPanel({ fmeaJson, fmeaType }: RuleVerificationPa
                               </TooltipContent>
                             </Tooltip>
                           )}
-                        </p>
+                        </div>
                         {rule.details && <p className={cn("text-xs mt-1", itemStatusConfig.color, "opacity-90")}>{rule.details}</p>}
                       </div>
                     </li>
