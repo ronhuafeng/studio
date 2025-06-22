@@ -9,6 +9,7 @@ To get started, take a look at src/app/page.tsx.
 - spec.yaml: OpenAPI for FEMA requests and responses.
 - models_v2.py: Pydantic schema for FEMA requests and responses.
 - rules.md: constrains on FEMA related requests and responses.
+- src/lib/fmea-rules.ts: existing rules implementation.
 
 ## Running the Application
 
