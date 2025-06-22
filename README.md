@@ -4,6 +4,12 @@ This is a NextJS starter in Firebase Studio.
 
 To get started, take a look at src/app/page.tsx.
 
+## Supporting documents
+
+- spec.yaml: OpenAPI for FEMA requests and responses.
+- models_v2.py: Pydantic schema for FEMA requests and responses.
+- rules.md: constrains on FEMA related requests and responses.
+
 ## Running the Application
 
 The main application runs on a single development server. For AI-specific features, a second Genkit server is required.
