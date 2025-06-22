@@ -1,11 +1,13 @@
+
 "use client";
 
-import React, { useCallback, useMemo } from "react";
+import React, { useEffect } from "react";
 import ReactFlow, {
   MiniMap,
   Controls,
   Background,
   BackgroundVariant,
+  useReactFlow,
   type Node,
   type Edge,
   type OnNodesChange,
@@ -30,7 +32,7 @@ const nodeTypes: NodeTypes = {
   custom: CustomGraphNode,
 };
 
-export function GraphViewer({
+function GraphViewerInternal({
   nodes,
   edges,
   onNodeClick,
@@ -41,6 +43,14 @@ export function GraphViewer({
 }: GraphViewerProps) {
 
   const proOptions = { hideAttribution: true };
+  const { fitView: rfFitView } = useReactFlow();
+
+  useEffect(() => {
+    if (fitView) {
+      rfFitView({ padding: 0.2 });
+    }
+  }, [fitView, rfFitView, nodes, edges]);
+
 
   return (
     <div className="w-full h-full rounded-lg shadow-lg overflow-hidden border border-border">
@@ -52,8 +62,7 @@ export function GraphViewer({
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}
         nodeTypes={nodeTypes}
-        fitView={fitView}
-        fitViewOptions={{ padding: 0.2 }}
+        // fitView prop is now handled by the useEffect above
         proOptions={proOptions}
         className="bg-background"
       >
@@ -65,12 +74,11 @@ export function GraphViewer({
   );
 }
 
-// Wrap with ReactFlowProvider if it's used at the root of GraphViewer or its parent
+// Wrap with ReactFlowProvider. This is crucial for useReactFlow to work.
 export function GraphViewerWrapper(props: GraphViewerProps) {
   return (
     <ReactFlowProvider>
-      <GraphViewer {...props} />
+      <GraphViewerInternal {...props} />
     </ReactFlowProvider>
   );
 }
-

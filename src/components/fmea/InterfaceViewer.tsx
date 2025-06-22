@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Node, Edge, OnNodesChange, OnEdgesChange } from "reactflow";
+import { Node, Edge, OnNodesChange, OnEdgesChange, ReactFlowProvider } from "reactflow";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CustomNodeData, InterfaceLink } from "@/types/fmea";
 import { formatBigIntForDisplay } from "@/lib/bigint-utils";
@@ -27,7 +27,7 @@ interface InterfaceGroupData {
   edges: Edge[];
 }
 
-export function InterfaceViewer({
+function InterfaceViewerInternal({
   nodes,
   edges,
   interfaceLinks,
@@ -145,4 +145,12 @@ export function InterfaceViewer({
       </Tabs>
     </div>
   );
+}
+
+export function InterfaceViewer(props: InterfaceViewerProps) {
+  return (
+    <ReactFlowProvider>
+      <InterfaceViewerInternal {...props} />
+    </ReactFlowProvider>
+  )
 }

@@ -539,18 +539,23 @@ export default function FmeaVisualizerPage() {
   
   const toggleFullScreen = useCallback(() => {
     setIsFullScreen(prev => !prev);
-    // Refit the view after the container resizes
+    // Refit the view after the container resizes.
+    // The timeout allows the DOM to update and for the container to actually be full-screen
+    // before React Flow tries to fit the view.
     setTimeout(() => {
       setNeedsLayout(true);
     }, 50);
   }, []);
 
   useEffect(() => {
+    // This effect ensures that the `fitView` prop is a "one-shot" trigger.
+    // After it's been set to true, we immediately set it back to false
+    // so it can be triggered again on the next layout change.
     if (needsLayout) {
       const timer = setTimeout(() => setNeedsLayout(false), 0);
       return () => clearTimeout(timer);
     }
-  }, [needsLayout, activeTab]);
+  }, [needsLayout]);
 
 
   const handleTabChange = (value: string) => {
@@ -560,7 +565,7 @@ export default function FmeaVisualizerPage() {
       setNeedsLayout(true);
       setInitialLayoutAppliedForTabs(prev => new Set(prev).add(value));
     } else {
-      setNeedsLayout(false);
+      setNeedsLayout(true); // Always refit on tab change
     }
   };
   
@@ -588,8 +593,10 @@ export default function FmeaVisualizerPage() {
       </div>
 
       <div className={cn(
-        "flex-grow h-[calc(100%-2rem)] md:h-full md:w-1/2 lg:w-3/5 order-first md:order-none flex flex-col",
-        isFullScreen && "fixed inset-0 z-50 bg-background p-4"
+        "flex flex-col",
+        isFullScreen
+          ? "fixed inset-0 z-50 bg-background p-4"
+          : "flex-grow h-[calc(100%-2rem)] md:h-full md:w-1/2 lg:w-3/5 order-first md:order-none"
       )}>
         <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col h-full">
           <TabsList className="mb-2 shrink-0">
@@ -629,7 +636,7 @@ export default function FmeaVisualizerPage() {
                   onEdgeClick={handleEdgeClick}
                   onNodesChange={onNodesChange}
                   onEdgesChange={onEdgesChange}
-                  fitView={needsLayout && activeTab === 'main'}
+                  fitView={needsLayout}
                 />
               ) : (
                 <div className="w-full h-full rounded-lg shadow-lg border border-border bg-card flex items-center justify-center">
@@ -648,7 +655,7 @@ export default function FmeaVisualizerPage() {
                   onEdgeClick={handleEdgeClick}
                   onNodesChange={onNodesChange}
                   onEdgesChange={onEdgesChange}
-                  fitView={needsLayout && activeTab === 'feature'}
+                  fitView={needsLayout}
                 />
               ) : (
                 <div className="w-full h-full rounded-lg shadow-lg border border-border bg-card flex items-center justify-center">
@@ -667,7 +674,7 @@ export default function FmeaVisualizerPage() {
                   onEdgeClick={handleEdgeClick}
                   onNodesChange={onNodesChange}
                   onEdgesChange={onEdgesChange}
-                  fitView={needsLayout && activeTab === 'failure'}
+                  fitView={needsLayout}
                 />
               ) : (
                 <div className="w-full h-full rounded-lg shadow-lg border border-border bg-card flex items-center justify-center">
@@ -687,7 +694,7 @@ export default function FmeaVisualizerPage() {
                   onEdgeClick={handleEdgeClick}
                   onNodesChange={onNodesChange}
                   onEdgesChange={onEdgesChange}
-                  fitView={needsLayout && activeTab === 'interface'}
+                  fitView={needsLayout}
                 />
               ) : (
                 <div className="w-full h-full rounded-lg shadow-lg border border-border bg-card flex items-center justify-center">

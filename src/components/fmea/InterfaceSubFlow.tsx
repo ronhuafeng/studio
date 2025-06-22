@@ -1,7 +1,7 @@
 // src/components/fmea/InterfaceSubFlow.tsx
 "use client";
 
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useEffect } from "react";
 import ReactFlow, {
   Node,
   Edge,
@@ -14,6 +14,7 @@ import ReactFlow, {
   BackgroundVariant,
   Controls,
   Panel,
+  useReactFlow,
 } from "reactflow";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +75,8 @@ function InterfaceSubFlow({
   onEdgesChange,
   fitView,
 }: InterfaceSubFlowProps) {
+  const { fitView: rfFitView } = useReactFlow();
+
   // Create a structure node for this group
   const structureNode: Node = useMemo(() => ({
     id: `structure_${interfaceGroup.structureId}`,
@@ -116,6 +119,12 @@ function InterfaceSubFlow({
     ...structureEdges,
     ...interfaceGroup.edges,
   ], [structureEdges, interfaceGroup.edges]);
+
+  useEffect(() => {
+    if (fitView) {
+      rfFitView({ padding: 0.1 });
+    }
+  }, [fitView, rfFitView, allNodes, allEdges]);
 
   const nodeTypes = useMemo(() => ({
     interfaceStructure: InterfaceStructureNode,
@@ -164,8 +173,6 @@ function InterfaceSubFlow({
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}
         nodeTypes={nodeTypes}
-        fitView={fitView}
-        fitViewOptions={{ padding: 0.1 }}
         proOptions={{ hideAttribution: true }}
         className="bg-transparent"
       >
