@@ -17,6 +17,7 @@ interface InterfaceViewerProps {
   onEdgeClick?: (event: React.MouseEvent, edge: Edge) => void;
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
+  fitView?: boolean;
 }
 
 interface InterfaceGroupData {
@@ -34,6 +35,7 @@ export function InterfaceViewer({
   onEdgeClick,
   onNodesChange,
   onEdgesChange,
+  fitView,
 }: InterfaceViewerProps) {
   // Group interfaces by structureId
   const interfaceGroups = useMemo(() => {
@@ -98,6 +100,7 @@ export function InterfaceViewer({
           onEdgeClick={onEdgeClick}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          fitView={fitView}
         />
       </div>
     );
@@ -134,6 +137,7 @@ export function InterfaceViewer({
                 onEdgeClick={onEdgeClick}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
+                fitView={fitView}
               />
             </TabsContent>
           ))}

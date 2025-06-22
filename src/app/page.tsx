@@ -687,6 +687,7 @@ export default function FmeaVisualizerPage() {
                   onEdgeClick={handleEdgeClick}
                   onNodesChange={onNodesChange}
                   onEdgesChange={onEdgesChange}
+                  fitView={needsLayout && activeTab === 'interface'}
                 />
               ) : (
                 <div className="w-full h-full rounded-lg shadow-lg border border-border bg-card flex items-center justify-center">

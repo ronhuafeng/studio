@@ -35,6 +35,7 @@ interface InterfaceSubFlowProps {
   onEdgeClick?: (event: React.MouseEvent, edge: Edge) => void;
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
+  fitView?: boolean;
 }
 
 // Custom node component for interface subflow
@@ -71,6 +72,7 @@ function InterfaceSubFlow({
   onEdgeClick,
   onNodesChange,
   onEdgesChange,
+  fitView,
 }: InterfaceSubFlowProps) {
   // Create a structure node for this group
   const structureNode: Node = useMemo(() => ({
@@ -162,7 +164,7 @@ function InterfaceSubFlow({
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}
         nodeTypes={nodeTypes}
-        fitView
+        fitView={fitView}
         fitViewOptions={{ padding: 0.1 }}
         proOptions={{ hideAttribution: true }}
         className="bg-transparent"
