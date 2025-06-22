@@ -962,7 +962,7 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
       <CardHeader>
         <CardTitle className="font-headline">FMEA Data Input</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-6 space-y-4">
         <div>
           <Label htmlFor="apiType" className="mb-2 block">API Response Type</Label>
           <Select
