@@ -585,13 +585,13 @@ const rules: FmeaRule[] = [
         const invalidLinks = pfmeaData.failureNet.filter(link => {
           const fromNode = nodeMap.get(link.from.toString());
           const toNode = nodeMap.get(link.to.toString());
-          // Failure net connects 'mode', 'effect', 'cause', 'action'
-          const failureTypes = ['mode', 'effect', 'cause', 'action'];
+          // In PFMEA, failureNet connects 'mode', 'effect', 'cause'
+          const failureTypes = ['mode', 'effect', 'cause'];
           return !fromNode || !toNode || !failureTypes.includes(fromNode.nodeType) || !failureTypes.includes(toNode.nodeType);
         });
         if (invalidLinks.length > 0) {
           const linkDetails = invalidLinks.map(l => `${l.from}(${nodeMap.get(l.from.toString())?.nodeType})->${l.to}(${nodeMap.get(l.to.toString())?.nodeType})`).join('; ');
-          errors.push(`failureNet 中 ${invalidLinks.length} 个连接不完全在失效节点（mode, effect, cause, action）之间: ${linkDetails}`);
+          errors.push(`failureNet 中 ${invalidLinks.length} 个连接不完全在失效节点（mode, effect, cause）之间: ${linkDetails}`);
         }
       }
 
