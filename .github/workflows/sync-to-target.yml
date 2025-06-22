@@ -1,10 +1,11 @@
-# .github/workflows/sync-to-target.yml
-name: Sync to another repo
+name: Sync main branch to another repo
 
 on:
   push:
-    branches: ["*"]
-    tags: ["*"]
+    # Only run this workflow when the 'main' branch is pushed
+    branches: [ main ] 
+  
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
@@ -14,6 +15,7 @@ jobs:
       - name: Checkout source repository
         uses: actions/checkout@v4
         with:
+          # We need to fetch all history for a force push to work correctly
           fetch-depth: 0
 
       - name: Set up SSH
@@ -21,30 +23,21 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.REPO_SYNC_KEY }}
 
-      # This is the corrected step
-      - name: Mirror to destination if author is authorized
-        # The env block safely exposes the secret to the run script
+      - name: Push main branch and tags if author is authorized
         env:
+          # Safely expose the secret as an environment variable
           AUTHORIZED_EMAIL: ${{ secrets.EMAIL }}
+          DESTINATION_REPO: ${{ secrets.TARGET_REPO }}
         run: |
-          # This 'if' is a SHELL 'if', not a GitHub Actions 'if'.
-          # It runs inside the job runner where secrets are available.
-          
-          # First, check if the workflow was manually triggered
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "Workflow was manually dispatched. Mirroring repository."
-            git push --mirror ssh://git@github.com/weavertech-group/fmea-vis.git
-            exit 0 # Exit successfully after push
-          fi
-          
-          # If it was a push event, check the commit author's email
-          echo "Event is a push. Checking commit author..."
-          echo "Commit author email: ${{ github.event.head_commit.author.email }}"
+          # Use a shell 'if' to check the condition
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" || "${{ github.event.head_commit.author.email }}" == "${AUTHORIZED_EMAIL}" ]]; then
+            echo "✅ Condition met. Pushing main branch and tags to destination."
 
-          if [[ "${{ github.event.head_commit.author.email }}" == "${AUTHORIZED_EMAIL}" ]]; then
-            echo "✅ Author email matches the authorized email. Mirroring repository."
-            git push --mirror ssh://git@github.com/weavertech-group/fmea-vis.git
+            # 1. Force push the main branch. This overwrites the destination 'main'
+            #    but does NOT touch any other branches.
+            git push ${DESTINATION_REPO} main:main
+
+            echo "Sync complete."
           else
-            echo "❌ Author email does not match. Skipping mirror."
-            # The step will still succeed, but the critical 'push' action is skipped.
+            echo "❌ Author email does not match. Skipping sync."
           fi
