@@ -59,7 +59,7 @@ const rules: FmeaRule[] = [
     description: '(需求分析特定) 响应中 `nodes` 数组的长度上限为 100。',
     groupId: 'completeness',
     check: (data, type) => {
-      if (type !== 'requirements') return { status: 'info', details: '该规则仅适用于需求分析。' };
+      if (type !== 'requirements') return { status: 'success', details: '该规则仅适用于需求分析。' };
       if (!data.nodes) return { status: 'success' };
       if (data.nodes.length > 100) {
         return { status: 'warning', details: `节点数量为 ${data.nodes.length}，超过 100 个可能导致前端性能问题。` };
@@ -74,7 +74,7 @@ const rules: FmeaRule[] = [
     description: '需求树必须有且仅有一个根节点 (`parentId: -1`)。',
     groupId: 'structure',
     check: (data, type) => {
-      if (type !== 'requirements') return { status: 'info', details: '该规则仅适用于需求分析。' };
+      if (type !== 'requirements') return { status: 'success', details: '该规则仅适用于需求分析。' };
       if (!data.nodes) return { status: 'error', details: '响应中缺少 `nodes` 数组。' };
       const roots = data.nodes.filter(n => n.parentId.toString() === '-1');
       if (roots.length !== 1) {
@@ -88,7 +88,7 @@ const rules: FmeaRule[] = [
     description: '该根节点的 `nodeType` 必须是 `requirement`。',
     groupId: 'structure',
     check: (data, type) => {
-      if (type !== 'requirements') return { status: 'info', details: '该规则仅适用于需求分析。' };
+      if (type !== 'requirements') return { status: 'success', details: '该规则仅适用于需求分析。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const roots = data.nodes.filter(n => n.parentId.toString() === '-1');
       if (roots.length !== 1) return { status: 'info', details: '无法确定唯一根节点，跳过此检查。' };
@@ -103,7 +103,7 @@ const rules: FmeaRule[] = [
     description: '`cha` 节点不能有任何子节点。',
     groupId: 'linking',
     check: (data, type) => {
-      if (type !== 'requirements') return { status: 'info', details: '该规则仅适用于需求分析。' };
+      if (type !== 'requirements') return { status: 'success', details: '该规则仅适用于需求分析。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const chaNodeIds = new Set(data.nodes.filter(n => n.nodeType === 'cha').map(n => n.uuid.toString()));
       const childrenOfCha = data.nodes.filter(n => chaNodeIds.has(n.parentId.toString()));
@@ -120,7 +120,7 @@ const rules: FmeaRule[] = [
     groupId: 'linking',
     remark: '违反了需求分解的最佳实践，应先有子需求。',
     check: (data, type) => {
-      if (type !== 'requirements') return { status: 'info', details: '该规则仅适用于需求分析。' };
+      if (type !== 'requirements') return { status: 'success', details: '该规则仅适用于需求分析。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const roots = data.nodes.filter(n => n.parentId.toString() === '-1');
       if (roots.length !== 1) return { status: 'info', details: '无法确定唯一根节点，跳过此检查。' };
@@ -139,7 +139,7 @@ const rules: FmeaRule[] = [
     groupId: 'linking',
     remark: '`func` 下再挂 `func` 违反了功能分解的逻辑。',
     check: (data, type) => {
-      if (type !== 'requirements') return { status: 'info', details: '该规则仅适用于需求分析。' };
+      if (type !== 'requirements') return { status: 'success', details: '该规则仅适用于需求分析。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
       const funcsWithFuncChildren = data.nodes.filter(n => {
@@ -163,7 +163,7 @@ const rules: FmeaRule[] = [
     groupId: 'structure',
     remark: '此规则严格对齐 AIAG-VDA FMEA 方法论中的“结构分析”步骤，确保了分析的规范性。',
     check: (data, type) => {
-      if (type !== 'dfmea') return { status: 'info', details: '该规则仅适用于DFMEA。' };
+      if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
       if (!data.nodes) return { status: 'error', details: '响应中缺少 `nodes` 数组。' };
       const roots = data.nodes.filter(n => n.parentId.toString() === '-1');
       if (roots.length !== 1) {
@@ -180,13 +180,13 @@ const rules: FmeaRule[] = [
     description: '`system` 根节点下有且仅有一个 `subsystem` 类型的直接子节点。',
     groupId: 'structure',
     check: (data, type) => {
-      if (type !== 'dfmea') return { status: 'info', details: '该规则仅适用于DFMEA。' };
+      if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const systemRoot = data.nodes.find(n => n.parentId.toString() === '-1' && n.nodeType === 'system');
       if (!systemRoot) return { status: 'info', details: '未找到 system 根节点，跳过此检查。' };
       const directSubsystems = data.nodes.filter(n => n.parentId === systemRoot.uuid && n.nodeType === 'subsystem');
       if (directSubsystems.length !== 1) {
-        return { status: 'error', details: `system 根节点 (UUID: ${systemRoot.uuid}) 下发现 ${directSubsystems.length} 个 subsystem 子节点，应为 1 个。` };
+        return { status: 'error', details: `system 根节点 (UUID: ${systemRoot.uuid}) 下发现 ${directSubsystems.length} 个 subsystem 直接子节点，应为 1 个。` };
       }
       return { status: 'success' };
     },
@@ -196,18 +196,40 @@ const rules: FmeaRule[] = [
     description: '所有在 `subsystem` 节点之下的结构性节点，其类型必须是 `component`。',
     groupId: 'structure',
     check: (data, type) => {
-      if (type !== 'dfmea') return { status: 'info', details: '该规则仅适用于DFMEA。' };
+      if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
-      const structuralTypes = ['system', 'subsystem', 'component'];
-      const subsystemIds = new Set(data.nodes.filter(n => n.nodeType === 'subsystem').map(n => n.uuid));
-      const invalidChildren: FmeaNode[] = [];
-      data.nodes.forEach(node => {
-        if (subsystemIds.has(node.parentId) && structuralTypes.includes(node.nodeType) && node.nodeType !== 'component') {
-          invalidChildren.push(node);
-        }
+      
+      const parentMap = new Map<string, FmeaNode[]>();
+      data.nodes.forEach(n => {
+        const parentId = n.parentId.toString();
+        if (!parentMap.has(parentId)) parentMap.set(parentId, []);
+        parentMap.get(parentId)!.push(n);
       });
-      if (invalidChildren.length > 0) {
-        return { status: 'error', details: `subsystem 节点下发现非 component 类型的结构性子节点 (UUIDs: ${invalidChildren.map(n => n.uuid).slice(0,3).join(', ')}).` };
+
+      const getAllDescendants = (nodeId: bigint): FmeaNode[] => {
+          const children = parentMap.get(nodeId.toString()) || [];
+          let descendants = [...children];
+          children.forEach(child => {
+              descendants = [...descendants, ...getAllDescendants(child.uuid)];
+          });
+          return descendants;
+      };
+
+      const structuralTypes = ['system', 'subsystem', 'component'];
+      const subsystemNodes = data.nodes.filter(n => n.nodeType === 'subsystem');
+      const invalidNodes: FmeaNode[] = [];
+
+      subsystemNodes.forEach(subsystem => {
+          const descendants = getAllDescendants(subsystem.uuid);
+          descendants.forEach(descendant => {
+              if (structuralTypes.includes(descendant.nodeType) && descendant.nodeType !== 'component') {
+                  invalidNodes.push(descendant);
+              }
+          });
+      });
+      
+      if (invalidNodes.length > 0) {
+        return { status: 'error', details: `subsystem 节点下发现非 component 类型的结构性后代节点 (例如 UUID: ${invalidNodes[0].uuid}, 类型: ${invalidNodes[0].nodeType})。` };
       }
       return { status: 'success' };
     },
@@ -217,7 +239,7 @@ const rules: FmeaRule[] = [
     description: '`func` (功能) 节点只能被挂载在 `system`、`subsystem` 或 `component` 节点下。',
     groupId: 'linking',
     check: (data, type) => {
-      if (type !== 'dfmea') return { status: 'info', details: '该规则仅适用于DFMEA。' };
+      if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
       const funcNodes = data.nodes.filter(n => n.nodeType === 'func');
@@ -236,7 +258,7 @@ const rules: FmeaRule[] = [
     description: '`cha` (特性) 的父节点必须是 `func`。',
     groupId: 'linking',
     check: (data, type) => {
-      if (type !== 'dfmea') return { status: 'info', details: '该规则仅适用于DFMEA。' };
+      if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
       const chaNodes = data.nodes.filter(n => n.nodeType === 'cha');
@@ -255,7 +277,7 @@ const rules: FmeaRule[] = [
     description: '`failure` (失效) 的父节点必须是 `func` 或 `cha`。',
     groupId: 'linking',
     check: (data, type) => {
-      if (type !== 'dfmea') return { status: 'info', details: '该规则仅适用于DFMEA。' };
+      if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
       const failureNodes = data.nodes.filter(n => n.nodeType === 'failure');
@@ -274,7 +296,7 @@ const rules: FmeaRule[] = [
     description: '`detection` 字段仅在 `category` 为 `2` (日常探测控制) 时才有效且必需。',
     groupId: 'completeness',
     check: (data, type) => {
-      if (type !== 'dfmea') return { status: 'info', details: '该规则仅适用于DFMEA。' };
+      if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const actions = data.nodes.filter(n => n.nodeType === 'action');
       const invalidActions = actions.filter(n => {
@@ -293,7 +315,7 @@ const rules: FmeaRule[] = [
     description: '`featureNet` 用于连接 `func` 类型的节点；`failureNet` 用于连接 `failure` 类型的节点。',
     groupId: 'network',
     check: (data, type) => {
-      if (type !== 'dfmea') return { status: 'info', details: '该规则仅适用于DFMEA。' };
+      if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
       const dfmeaData = data as DFMEAAnalysisResponse;
       const errors = [];
@@ -324,7 +346,7 @@ const rules: FmeaRule[] = [
     description: '`interface` 只能在 `component` 类型的节点之间建立。',
     groupId: 'network',
     check: (data, type) => {
-      if (type !== 'dfmea') return { status: 'info', details: '该规则仅适用于DFMEA。' };
+      if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
       const dfmeaData = data as DFMEAAnalysisResponse;
       if (!dfmeaData.interface) return { status: 'success' };
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
@@ -344,7 +366,7 @@ const rules: FmeaRule[] = [
     description: '`interface` 的 `structureId` 必须是 `startId` 和 `endId` 的共同父节点的 `uuid`。',
     groupId: 'network',
     check: (data, type) => {
-      if (type !== 'dfmea') return { status: 'info', details: '该规则仅适用于DFMEA。' };
+      if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
       const dfmeaData = data as DFMEAAnalysisResponse;
       if (!dfmeaData.interface) return { status: 'success' };
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
@@ -366,7 +388,7 @@ const rules: FmeaRule[] = [
     groupId: 'linking',
     remark: '这是一个重要的逻辑规则，确保分析链条的清晰性。',
     check: (data, type) => {
-      if (type !== 'dfmea') return { status: 'info', details: '该规则仅适用于DFMEA。' };
+      if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const funcNodes = data.nodes.filter(n => n.nodeType === 'func');
       const invalidFuncs = funcNodes.filter(f => {
@@ -386,7 +408,7 @@ const rules: FmeaRule[] = [
     description: '如果响应中存在 `failureNet`，那么 `featureNet` 也应一并返回，反之亦然。',
     groupId: 'network',
     check: (data, type) => {
-      if (type !== 'dfmea' && type !== 'pfmea') return { status: 'info', details: '该规则仅适用于DFMEA/PFMEA。' };
+      if (type !== 'dfmea' && type !== 'pfmea') return { status: 'success', details: '该规则仅适用于DFMEA/PFMEA。' };
       const apiData = data as (DFMEAAnalysisResponse | PFMEAAnalysisResponse);
       const hasFeatureNet = apiData.featureNet && apiData.featureNet.length > 0;
       const hasFailureNet = apiData.failureNet && apiData.failureNet.length > 0;
@@ -402,7 +424,7 @@ const rules: FmeaRule[] = [
     groupId: 'network',
     remark: '违反了 FMEA 中功能/失效链的跨层级传递原则。',
     check: (data, type) => {
-      if (type !== 'dfmea') return { status: 'info', details: '该规则仅适用于DFMEA。' };
+      if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
       const dfmeaData = data as DFMEAAnalysisResponse;
       if (!dfmeaData.featureNet && !dfmeaData.failureNet) return { status: 'success' };
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
@@ -425,7 +447,7 @@ const rules: FmeaRule[] = [
     description: 'PFMEA 树必须有且仅有一个根节点，且其 `nodeType` 必须是 `item`。',
     groupId: 'structure',
     check: (data, type) => {
-      if (type !== 'pfmea') return { status: 'info', details: '该规则仅适用于PFMEA。' };
+      if (type !== 'pfmea') return { status: 'success', details: '该规则仅适用于PFMEA。' };
       if (!data.nodes) return { status: 'error', details: '响应中缺少 `nodes` 数组。' };
       const roots = data.nodes.filter(n => n.parentId.toString() === '-1');
       if (roots.length !== 1) {
@@ -443,7 +465,7 @@ const rules: FmeaRule[] = [
     groupId: 'linking',
     remark: '这是 PFMEA 的核心逻辑，确保了产品/过程特性的正确归属。',
     check: (data, type) => {
-      if (type !== 'pfmea') return { status: 'info', details: '该规则仅适用于PFMEA。' };
+      if (type !== 'pfmea') return { status: 'success', details: '该规则仅适用于PFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
       const invalidChas = data.nodes.filter(n => {
@@ -462,7 +484,7 @@ const rules: FmeaRule[] = [
     description: '若 `cha` 的父节点是 `elem`，则 `cha.extra.type` 必须是 `process`。',
     groupId: 'linking',
     check: (data, type) => {
-      if (type !== 'pfmea') return { status: 'info', details: '该规则仅适用于PFMEA。' };
+      if (type !== 'pfmea') return { status: 'success', details: '该规则仅适用于PFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
       const invalidChas = data.nodes.filter(n => {
@@ -481,7 +503,7 @@ const rules: FmeaRule[] = [
     description: '`func` 节点只能被挂载在 `item`, `step`, `step2`, 或 `elem` 节点下。',
     groupId: 'linking',
     check: (data, type) => {
-      if (type !== 'pfmea') return { status: 'info', details: '该规则仅适用于PFMEA。' };
+      if (type !== 'pfmea') return { status: 'success', details: '该规则仅适用于PFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
       const funcNodes = data.nodes.filter(n => n.nodeType === 'func');
@@ -500,7 +522,7 @@ const rules: FmeaRule[] = [
     description: '`detection` 字段仅在 `category` 为 `2` (日常探测控制) 时才有效且必需。',
     groupId: 'completeness',
     check: (data, type) => {
-      if (type !== 'pfmea') return { status: 'info', details: '该规则仅适用于PFMEA。' };
+      if (type !== 'pfmea') return { status: 'success', details: '该规则仅适用于PFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const actions = data.nodes.filter(n => n.nodeType === 'action');
       const invalidActions = actions.filter(n => {
@@ -520,7 +542,7 @@ const rules: FmeaRule[] = [
     description: '`featureNet` 用于连接结构性节点；`failureNet` 用于连接 `mode` 类型的节点。',
     groupId: 'network',
     check: (data, type) => {
-      if (type !== 'pfmea') return { status: 'info', details: '该规则仅适用于PFMEA。' };
+      if (type !== 'pfmea') return { status: 'success', details: '该规则仅适用于PFMEA。' };
       const pfmeaData = data as PFMEAAnalysisResponse;
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
       const errors = [];
@@ -560,7 +582,7 @@ const rules: FmeaRule[] = [
     groupId: 'linking',
     remark: '鼓励遵循 `结构 → 功能 → 特性` 的完整逻辑链。',
     check: (data, type) => {
-      if (type !== 'pfmea') return { status: 'info', details: '该规则仅适用于PFMEA。' };
+      if (type !== 'pfmea') return { status: 'success', details: '该规则仅适用于PFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
       const structuralNodeTypes = ['item', 'step', 'step2', 'elem'];
@@ -576,14 +598,22 @@ const rules: FmeaRule[] = [
     },
   },
   {
+      id: '03-1-1-08',
+      description: '如果响应中存在 `failureNet`，那么 `featureNet` 也应一并返回，反之亦然。',
+      groupId: 'network',
+      check: (data, type) => {
+        if (type !== 'pfmea') return { status: 'success', details: '该规则仅适用于PFMEA。' };
+        // This logic is identical to rule 02-1-1-12, which already checks for PFMEA
+        return { status: 'info', details: '此规则由 02-1-1-12 覆盖。' };
+      },
+  },
+  {
     id: '03-1-2-09',
     description: '推荐的结构层级为 `item` → `step` → `step2` → `elem`。',
     groupId: 'structure',
     check: (data, type) => {
-      if (type !== 'pfmea') return { status: 'info', details: '该规则仅适用于PFMEA。' };
+      if (type !== 'pfmea') return { status: 'success', details: '该规则仅适用于PFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
-       // This is a "suggestion" rule, so it will only ever return 'success' or 'info'.
-       // A full implementation would be complex. For now, we return success as it's a non-critical suggestion.
       return { status: 'success', details: '此为建议性规则，暂不进行强制检查。' };
     },
   },
@@ -593,6 +623,13 @@ export function runAllRules(data: FmeaApiResponse, type: ApiResponseType | null)
   type TempRuleItem = RuleItem & { groupId: keyof typeof ruleGroupDefs };
 
   const allRuleItems: TempRuleItem[] = rules.map(rule => {
+    // Hide rule 03-1-1-08 since it's a duplicate of 02-1-1-12 logic
+    if (rule.id === '03-1-1-08') {
+      return {
+        id: rule.id, description: rule.description, remark: rule.remark || null,
+        status: 'info', details: '此规则由 02-1-1-12 覆盖。', groupId: rule.groupId
+      };
+    }
     const { status, details } = rule.check(data, type);
     return {
       id: rule.id,
@@ -602,7 +639,7 @@ export function runAllRules(data: FmeaApiResponse, type: ApiResponseType | null)
       details,
       groupId: rule.groupId,
     };
-  });
+  }).filter(item => item.status !== 'info' || ['00-1-0-07', '00-1-0-08'].includes(item.id));
 
   const grouped = allRuleItems.reduce((acc, item) => {
     const { groupId, ...ruleItem } = item;
