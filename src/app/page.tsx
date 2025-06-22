@@ -573,6 +573,15 @@ export default function FmeaVisualizerPage() {
   const noDataForActiveTab = currentNodes.length === 0 && !isLoading;
   const isGraphTabActive = ['main', 'feature', 'failure', 'interface'].includes(activeTab);
 
+  if (!rawJson) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background p-4">
+        <div className="w-full max-w-3xl">
+          <DataInputPanel onJsonSubmit={handleJsonSubmit} disabled={isLoading} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col md:flex-row h-screen max-h-screen p-4 gap-4 bg-background">
