@@ -575,7 +575,7 @@ export default function FmeaVisualizerPage() {
 
   if (!rawJson) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background p-4">
+      <div className="flex min-h-screen w-full items-start justify-center bg-background p-4 pt-12 md:items-center md:pt-4">
         <div className="w-full max-w-3xl">
           <DataInputPanel onJsonSubmit={handleJsonSubmit} disabled={isLoading} />
         </div>
