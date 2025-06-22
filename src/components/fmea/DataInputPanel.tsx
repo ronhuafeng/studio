@@ -15,7 +15,7 @@ import { Loader2 } from "lucide-react";
 import { parseJsonWithBigInt } from "@/lib/bigint-utils";
 
 interface DataInputPanelProps {
-  onJsonSubmit: (json: string, type: ApiResponseType) => void;
+  onJsonSubmit: (json: string, type: ApiResponseType, payload: string) => void;
   disabled?: boolean;
 }
 
@@ -794,57 +794,50 @@ const defaultApiBaseUrl = 'https://fmea-api.xixifusi.online/api/fmea/analysis/';
 const defaultApiPayloads: Record<ApiResponseType, string> = {
   requirements: `{
   "sessionId": "session_ghia17289_requirements_focus",
-  "nodes": [
-    {
-      "uuid": "590066152953221121"
-    }
-  ],
-  "documentIds": [
-    "http://www.example.doc_std_gbt20234_abc"
-  ],
+  "scope": "full_doc",
+  "nodes": [ { "uuid": "590066152953221121" } ],
+  "documentIds": [ "http://www.example.doc_std_gbt20234_abc" ],
   "modifiedStructure": {
     "nodes": [
       {
         "uuid": "590066152953221100",
         "parentId": "-1",
-        "nodeType": "system",
-        "description": "调整后的机械安全系统",
-        "extra": {
-          "projectCode": "XYZ-Mod"
-        }
+        "nodeType": "requirement",
+        "description": "调整后的机械安全系统"
       },
       {
         "uuid": "590066152953221121",
         "parentId": "590066152953221100",
-        "nodeType": "subsystem",
-        "description": "调整后的挤压防护子系统",
-        "extra": {}
-      },
-      {
-        "uuid": "590066152953221122",
-        "parentId": "590066152953221121",
-        "nodeType": "component",
-        "description": "定制化安全间距挡板",
-        "extra": {}
+        "nodeType": "requirement",
+        "description": "调整后的挤压防护子系统"
       }
     ]
-  },
-  "scope": "structure_only",
-  "extraPayload": "{\\"analysisScope\\": \\"critical_safety_reqs_only\\"}"
+  }
 }`,
   dfmea: `{
   "sessionId": "session_dfmea_example",
-  "nodes": [],
-  "modifiedStructure": { "nodes": [] },
-  "scope": "full_dfmea",
-  "extraPayload": "{}"
+  "scope": "full_doc",
+  "modifiedStructure": {
+    "nodes": [
+      {
+        "uuid": 589738752264507392,
+        "parentId": -1,
+        "nodeType": "system",
+        "description": "激光器系统"
+      },
+      {
+        "uuid": 589738752264507393,
+        "parentId": 589738752264507392,
+        "nodeType": "subsystem",
+        "description": "激光发射子系统"
+      }
+    ]
+  }
 }`,
   pfmea: `{
   "sessionId": "session_pfmea_example",
-  "processSteps": [],
-  "modifiedStructure": { "nodes": [] },
-  "scope": "full_pfmea",
-  "extraPayload": "{}"
+  "scope": "full_doc",
+  "modifiedStructure": { "nodes": [] }
 }`,
 };
 
@@ -868,7 +861,7 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
   }, [apiType]);
 
   const handleSubmit = () => {
-    onJsonSubmit(jsonInput, apiType);
+    onJsonSubmit(jsonInput, apiType, apiPayload);
   };
 
   const handleApiTypeChange = (value: string) => {
@@ -1021,7 +1014,7 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
 
         <CardDescription>Option 2: Paste JSON or Use Example</CardDescription>
         <div>
-          <Label htmlFor="jsonInput" className="mb-2 block">FMEA JSON Data</Label>
+          <Label htmlFor="jsonInput" className="mb-2 block">FMEA JSON Data (Response)</Label>
           <Textarea
             id="jsonInput"
             value={jsonInput}
@@ -1043,4 +1036,3 @@ export function DataInputPanel({ onJsonSubmit, disabled }: DataInputPanelProps) 
     </Card>
   );
 }
-

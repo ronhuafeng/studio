@@ -83,6 +83,7 @@ const getLayoutedElements = (initialNodes: RFNode<CustomNodeData>[], initialEdge
 
 export default function FmeaVisualizerPage() {
   const [rawJson, setRawJson] = useState<string>("");
+  const [apiRequestPayload, setApiRequestPayload] = useState<string>("");
   const [apiResponseType, setApiResponseType] = useState<ApiResponseType | null>(null);
   
   const [mainRfNodes, setMainRfNodes] = useState<RFNode<CustomNodeData>[]>([]);
@@ -139,9 +140,10 @@ export default function FmeaVisualizerPage() {
     [activeTab] 
   );
 
-  const handleJsonSubmit = useCallback((json: string, type: ApiResponseType) => {
+  const handleJsonSubmit = useCallback((json: string, type: ApiResponseType, payload: string) => {
     setIsLoading(true);
     setRawJson(json);
+    setApiRequestPayload(payload);
     setApiResponseType(type);
     setSelectedNode(null);
     setSelectedInterfaceLink(null);
@@ -718,6 +720,7 @@ export default function FmeaVisualizerPage() {
                   <RuleVerificationPanel
                     fmeaJson={rawJson}
                     fmeaType={apiResponseType}
+                    apiRequestPayload={apiRequestPayload}
                     disabled={isLoading}
                   />
                 </div>

@@ -15,6 +15,7 @@ interface RuleVerificationPanelProps {
   fmeaJson: string;
   fmeaType: ApiResponseType | null;
   disabled?: boolean;
+  apiRequestPayload?: string;
 }
 
 const statusConfig: Record<RuleItemStatus, { icon: React.ComponentType<{className?: string}>, color: string, label: string, borderColor: string }> = {
@@ -25,7 +26,7 @@ const statusConfig: Record<RuleItemStatus, { icon: React.ComponentType<{classNam
 };
 
 
-export function RuleVerificationPanel({ fmeaJson, fmeaType }: RuleVerificationPanelProps) {
+export function RuleVerificationPanel({ fmeaJson, fmeaType, apiRequestPayload }: RuleVerificationPanelProps) {
   const [resultGroups, setResultGroups] = useState<RuleGroup[]>([]);
   const [filterStatus, setFilterStatus] = useState<'all' | 'error' | 'warning' | 'success'>('all');
 
@@ -36,11 +37,11 @@ export function RuleVerificationPanel({ fmeaJson, fmeaType }: RuleVerificationPa
       return;
     }
 
-    const validationResults = runAllRules(fmeaJson, fmeaType);
+    const validationResults = runAllRules(fmeaJson, fmeaType, apiRequestPayload);
     setResultGroups(validationResults);
     setFilterStatus('all');
     
-  }, [fmeaJson, fmeaType]);
+  }, [fmeaJson, fmeaType, apiRequestPayload]);
   
   const totalRules = useMemo(() => resultGroups.reduce((acc, group) => acc + group.rules.length, 0), [resultGroups]);
   const totalSummary = useMemo(() => {

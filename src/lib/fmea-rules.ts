@@ -24,7 +24,7 @@ export interface FmeaRule {
   description: string;
   groupId: keyof typeof ruleGroupDefs;
   remark?: string;
-  check: (data: FmeaApiResponse, type: ApiResponseType | null) => Pick<RuleItem, 'status' | 'details'>;
+  check: (responseData: FmeaApiResponse, type: ApiResponseType | null, requestData?: any) => Pick<RuleItem, 'status' | 'details'>;
 }
 
 const ruleGroupDefs = {
@@ -41,20 +41,67 @@ const rules: FmeaRule[] = [
   // 00 - General Rules
   {
     id: '00-1-0-07',
-    description: '在 `scope="full_doc"` 的场景下，Agent 返回的 `nodes` 列表绝不能修改或删除任何从 `modifiedStructure` 中接收到的节点的 `uuid` 和 `parentId`。',
+    description: '在 `scope="full_doc"` 的场景下，Agent 返回的 `nodes` 列表绝不能修改从 `modifiedStructure` 中接收到的节点的 `parentId`。',
     groupId: 'structureStability',
     remark: '这是保证用户编辑内容不被 AI 覆盖的核心规则，是系统数据一致性的基石。',
-    check: (data, type) => {
-      return { status: 'info', details: '此规则需要在请求和响应之间进行比较，当前无法在仅有响应数据的情况下进行验证。' };
+    check: (responseData, type, requestData) => {
+      if (!requestData || !requestData.modifiedStructure || !Array.isArray(requestData.modifiedStructure.nodes)) {
+        return { status: 'info', details: '未提供可用于比较的请求数据 (modifiedStructure)，跳过此检查。' };
+      }
+      if (requestData.scope !== 'full_doc') {
+        return { status: 'success', details: `请求的 scope 为 "${requestData.scope}"，此规则不适用。` };
+      }
+      
+      const requestNodes = requestData.modifiedStructure.nodes;
+      const responseNodeMap = new Map(responseData.nodes.map(n => [n.uuid.toString(), n]));
+      
+      const modifiedNodes: string[] = [];
+
+      for (const reqNode of requestNodes) {
+        const resNode = responseNodeMap.get(reqNode.uuid.toString());
+        if (resNode) {
+          if (resNode.parentId.toString() !== reqNode.parentId.toString()) {
+            modifiedNodes.push(reqNode.uuid.toString());
+          }
+        }
+        // Deletion is handled by rule 00-1-0-08
+      }
+
+      if (modifiedNodes.length > 0) {
+        return { status: 'error', details: `响应修改了 ${modifiedNodes.length} 个节点的 parentId。违规节点 UUID: ${modifiedNodes.join(', ')}` };
+      }
+      
+      return { status: 'success' };
     },
   },
   {
     id: '00-1-0-08',
     description: 'Agent 只能在现有结构上添加新节点。',
     groupId: 'structureStability',
-    remark: '此规则需要在请求和响应之间进行比较，当前无法在仅有响应数据的情况下进行验证。',
-    check: (data, type) => {
-      return { status: 'info', details: '此规则需要在请求和响应之间进行比较，当前无法在仅有响应数据的情况下进行验证。' };
+    remark: '这意味着 Agent 不能从 modifiedStructure 中删除任何节点。',
+    check: (responseData, type, requestData) => {
+      if (!requestData || !requestData.modifiedStructure || !Array.isArray(requestData.modifiedStructure.nodes)) {
+        return { status: 'info', details: '未提供可用于比较的请求数据 (modifiedStructure)，跳过此检查。' };
+      }
+      if (requestData.scope !== 'full_doc') {
+        return { status: 'success', details: `请求的 scope 为 "${requestData.scope}"，此规则不适用。` };
+      }
+      
+      const requestNodeUuids = new Set(requestData.modifiedStructure.nodes.map((n: FmeaNode) => n.uuid.toString()));
+      const responseNodeUuids = new Set(responseData.nodes.map(n => n.uuid.toString()));
+      
+      const deletedUuids: string[] = [];
+      requestNodeUuids.forEach(uuid => {
+        if (!responseNodeUuids.has(uuid)) {
+          deletedUuids.push(uuid);
+        }
+      });
+      
+      if (deletedUuids.length > 0) {
+        return { status: 'error', details: `响应删除了 ${deletedUuids.length} 个在请求中存在的节点。被删除的节点 UUID: ${deletedUuids.join(', ')}` };
+      }
+
+      return { status: 'success' };
     },
   },
   {
@@ -421,7 +468,7 @@ const rules: FmeaRule[] = [
   },
   {
     id: '02-1-1-12',
-    description: '(DFMEA/PFMEA) 如果响应中存在 `failureNet`，那么 `featureNet` 也应一并返回，反之亦然。',
+    description: '如果响应中存在 `failureNet`，那么 `featureNet` 也应一并返回，反之亦然。',
     groupId: 'network',
     check: (data, type) => {
       if (type !== 'dfmea' && type !== 'pfmea') return { status: 'success', details: '该规则仅适用于DFMEA/PFMEA。' };
@@ -635,10 +682,12 @@ const rules: FmeaRule[] = [
   },
 ];
 
-export function runAllRules(fmeaJson: string, type: ApiResponseType | null): RuleGroup[] {
-  let parsedData: FmeaApiResponse;
+export function runAllRules(fmeaJson: string, type: ApiResponseType | null, requestJson?: string): RuleGroup[] {
+  let responseData: FmeaApiResponse;
+  let requestData: any | undefined;
+
   try {
-    parsedData = parseJsonWithBigInt(fmeaJson);
+    responseData = parseJsonWithBigInt(fmeaJson);
   } catch (error) {
     return [{
       groupTitle: ruleGroupDefs.jsonValidation.title,
@@ -653,11 +702,21 @@ export function runAllRules(fmeaJson: string, type: ApiResponseType | null): Rul
       }]
     }];
   }
+  
+  if (requestJson) {
+    try {
+      requestData = parseJsonWithBigInt(requestJson);
+    } catch (e) {
+      console.warn("Could not parse request payload JSON for rule validation:", e);
+      requestData = undefined;
+    }
+  }
+
 
   type TempRuleItem = RuleItem & { groupId: keyof typeof ruleGroupDefs };
 
   const allRuleItems: TempRuleItem[] = rules.map(rule => {
-    const { status, details } = rule.check(parsedData, type);
+    const { status, details } = rule.check(responseData, type, requestData);
     return {
       id: rule.id,
       description: rule.description,
@@ -666,13 +725,6 @@ export function runAllRules(fmeaJson: string, type: ApiResponseType | null): Rul
       details,
       groupId: rule.groupId,
     };
-  }).filter(item => {
-    // Filter out info statuses that are just informational and not actionable for the user
-    // unless they are about contract stability which is important context.
-    if (item.status === 'info') {
-      return ['00-1-0-07', '00-1-0-08'].includes(item.id);
-    }
-    return true;
   });
 
 
