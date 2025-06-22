@@ -2,10 +2,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { ApiResponseType, FmeaApiResponse } from '@/types/fmea';
+import type { ApiResponseType } from '@/types/fmea';
 import type { RuleGroup, RuleItemStatus } from '@/lib/fmea-rules';
 import { runAllRules } from '@/lib/fmea-rules';
-import { parseJsonWithBigInt } from '@/lib/bigint-utils';
 import { CheckCircle, XCircle, AlertTriangle, Info, ChevronDown } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -28,32 +27,19 @@ const statusConfig: Record<RuleItemStatus, { icon: React.ComponentType<{classNam
 
 export function RuleVerificationPanel({ fmeaJson, fmeaType }: RuleVerificationPanelProps) {
   const [resultGroups, setResultGroups] = useState<RuleGroup[]>([]);
-  const [parseError, setParseError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'error' | 'warning' | 'success'>('all');
 
   useEffect(() => {
     if (!fmeaJson || !fmeaType) {
       setResultGroups([]);
-      setParseError(null);
       setFilterStatus('all');
       return;
     }
 
-    try {
-      const parsedData = parseJsonWithBigInt(fmeaJson) as FmeaApiResponse;
-      setParseError(null);
-      const validationResults = runAllRules(parsedData, fmeaType);
-      setResultGroups(validationResults);
-      setFilterStatus('all');
-    } catch (error) {
-      if (error instanceof Error) {
-        setParseError(error.message);
-      } else {
-        setParseError('An unknown error occurred during JSON parsing.');
-      }
-      setResultGroups([]);
-      setFilterStatus('all');
-    }
+    const validationResults = runAllRules(fmeaJson, fmeaType);
+    setResultGroups(validationResults);
+    setFilterStatus('all');
+    
   }, [fmeaJson, fmeaType]);
   
   const totalRules = useMemo(() => resultGroups.reduce((acc, group) => acc + group.rules.length, 0), [resultGroups]);
@@ -67,13 +53,12 @@ export function RuleVerificationPanel({ fmeaJson, fmeaType }: RuleVerificationPa
   }, [resultGroups]);
 
   const filteredGroups = useMemo(() => {
-    if (parseError) return [];
     if (filterStatus === 'all') return resultGroups;
     return resultGroups.map(group => ({
       ...group,
       rules: group.rules.filter(rule => rule.status === filterStatus)
     })).filter(group => group.rules.length > 0);
-  }, [resultGroups, filterStatus, parseError]);
+  }, [resultGroups, filterStatus]);
 
 
   if (!fmeaJson) {
@@ -127,16 +112,16 @@ export function RuleVerificationPanel({ fmeaJson, fmeaType }: RuleVerificationPa
       </div>
       
       <div className="space-y-2">
-        {parseError ? (
-           <p className="text-destructive">JSON 解析错误: {parseError}</p>
-        ) : filteredGroups.length === 0 && filterStatus !== 'all' ? (
+        {filteredGroups.length === 0 && filterStatus !== 'all' ? (
            <div className="text-center text-muted-foreground py-8">
               <p>没有找到状态为 “{statusConfig[filterStatus].label}” 的规则。</p>
             </div>
         ) : filteredGroups.map((group) => {
           const groupStatusConfig = statusConfig[group.overallStatus];
+          // Default to open if there are errors or warnings
+          const defaultOpen = group.overallStatus === 'error' || group.overallStatus === 'warning';
           return (
-            <details key={group.groupTitle} className={cn("group border-l-4 rounded-r-md bg-muted/30 p-4", groupStatusConfig.borderColor)} open={group.overallStatus !== 'success'}>
+            <details key={group.groupTitle} className={cn("group border-l-4 rounded-r-md bg-muted/30 p-4", groupStatusConfig.borderColor)} open={defaultOpen}>
               <summary className="flex items-center justify-between cursor-pointer list-none">
                 <div className="flex items-center space-x-3">
                   <groupStatusConfig.icon className={cn("w-5 h-5", groupStatusConfig.color)} />
@@ -151,7 +136,6 @@ export function RuleVerificationPanel({ fmeaJson, fmeaType }: RuleVerificationPa
               </summary>
               <ul className="mt-4 space-y-4 pl-8 border-l border-border ml-2.5">
                 {group.rules.map(rule => {
-                  if (rule.status === 'info') return null; // Don't show info items
                   const itemStatusConfig = statusConfig[rule.status];
                   return (
                     <li key={rule.id} className="flex items-start space-x-4">

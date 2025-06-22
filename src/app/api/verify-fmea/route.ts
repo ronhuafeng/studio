@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { runAllRules } from '@/lib/fmea-rules';
-import { parseJsonWithBigInt } from '@/lib/bigint-utils';
-import type { FmeaApiResponse, ApiResponseType } from '@/types/fmea';
-import type { RuleResult } from '@/lib/fmea-rules';
+import type { ApiResponseType } from '@/types/fmea';
+import type { RuleGroup } from '@/lib/fmea-rules';
 
 export async function POST(request: Request) {
   try {
@@ -22,18 +21,9 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-
-    let parsedData: FmeaApiResponse;
-    try {
-      parsedData = parseJsonWithBigInt(fmeaJson);
-    } catch (e) {
-      return NextResponse.json(
-        { error: 'Invalid FMEA JSON data provided', details: (e as Error).message },
-        { status: 400 }
-      );
-    }
     
-    const results: RuleResult[] = runAllRules(parsedData, fmeaType as ApiResponseType);
+    // runAllRules now expects the raw JSON string and handles parsing internally
+    const results: RuleGroup[] = runAllRules(fmeaJson, fmeaType as ApiResponseType);
     
     return NextResponse.json(results, { status: 200 });
 
