@@ -1,5 +1,6 @@
 
 import type { FmeaApiResponse, ApiResponseType, FmeaNode, DFMEAAnalysisResponse, PFMEAAnalysisResponse } from '@/types/fmea';
+import { parseJsonWithBigInt } from './bigint-utils';
 
 export type RuleItemStatus = 'success' | 'error' | 'warning' | 'info';
 
@@ -27,6 +28,7 @@ export interface FmeaRule {
 }
 
 const ruleGroupDefs = {
+  jsonValidation: { title: 'JSON 格式验证' },
   structureStability: { title: '结构稳定性约束' },
   structure: { title: '结构骨架与根节点约束' },
   linking: { title: '元素挂载、层级与依赖约束' },
@@ -50,6 +52,7 @@ const rules: FmeaRule[] = [
     id: '00-1-0-08',
     description: 'Agent 只能在现有结构上添加新节点。',
     groupId: 'structureStability',
+    remark: '此规则需要在请求和响应之间进行比较，当前无法在仅有响应数据的情况下进行验证。',
     check: (data, type) => {
       return { status: 'info', details: '此规则需要在请求和响应之间进行比较，当前无法在仅有响应数据的情况下进行验证。' };
     },
@@ -619,18 +622,29 @@ const rules: FmeaRule[] = [
   },
 ];
 
-export function runAllRules(data: FmeaApiResponse, type: ApiResponseType | null): RuleGroup[] {
+export function runAllRules(fmeaJson: string, type: ApiResponseType | null): RuleGroup[] {
+  let parsedData: FmeaApiResponse;
+  try {
+    parsedData = parseJsonWithBigInt(fmeaJson);
+  } catch (error) {
+    return [{
+      groupTitle: ruleGroupDefs.jsonValidation.title,
+      overallStatus: 'error',
+      summary: { error: 1 },
+      rules: [{
+        id: '00-1-0-09',
+        description: '响应必须是结构完整的 JSON 对象。',
+        status: 'error',
+        details: `JSON 解析失败: ${(error as Error).message}`,
+        remark: '格式错误将导致整个响应无法被平台解析。',
+      }]
+    }];
+  }
+
   type TempRuleItem = RuleItem & { groupId: keyof typeof ruleGroupDefs };
 
   const allRuleItems: TempRuleItem[] = rules.map(rule => {
-    // Hide rule 03-1-1-08 since it's a duplicate of 02-1-1-12 logic
-    if (rule.id === '03-1-1-08') {
-      return {
-        id: rule.id, description: rule.description, remark: rule.remark || null,
-        status: 'info', details: '此规则由 02-1-1-12 覆盖。', groupId: rule.groupId
-      };
-    }
-    const { status, details } = rule.check(data, type);
+    const { status, details } = rule.check(parsedData, type);
     return {
       id: rule.id,
       description: rule.description,
@@ -639,7 +653,14 @@ export function runAllRules(data: FmeaApiResponse, type: ApiResponseType | null)
       details,
       groupId: rule.groupId,
     };
-  }).filter(item => item.status !== 'info' || ['00-1-0-07', '00-1-0-08'].includes(item.id));
+  }).filter(item => {
+    if (item.status === 'info') {
+      // Only show specific info rules that are useful for context
+      return ['00-1-0-07', '00-1-0-08'].includes(item.id);
+    }
+    return true;
+  });
+
 
   const grouped = allRuleItems.reduce((acc, item) => {
     const { groupId, ...ruleItem } = item;
@@ -658,7 +679,10 @@ export function runAllRules(data: FmeaApiResponse, type: ApiResponseType | null)
     
     let overallStatus: RuleItemStatus = 'success';
     const summary = itemsInGroup.reduce((acc, item) => {
-      acc[item.status] = (acc[item.status] || 0) + 1;
+      // Don't count 'info' in the summary totals shown in the header
+      if (item.status !== 'info') {
+        acc[item.status] = (acc[item.status] || 0) + 1;
+      }
       
       if (statusPriority[item.status] > statusPriority[overallStatus]) {
         overallStatus = item.status;
