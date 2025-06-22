@@ -21,12 +21,13 @@ export interface RuleGroup {
 export interface FmeaRule {
   id: string; 
   description: string;
-  groupId: 'structure' | 'linking' | 'network' | 'completeness';
+  groupId: keyof typeof ruleGroupDefs;
   remark?: string;
   check: (data: FmeaApiResponse, type: ApiResponseType | null) => Pick<RuleItem, 'status' | 'details'>;
 }
 
 const ruleGroupDefs = {
+  structureStability: { title: '结构稳定性约束' },
   structure: { title: '结构骨架与根节点约束' },
   linking: { title: '元素挂载、层级与依赖约束' },
   network: { title: '网络(Net)与接口(Interface)约束' },
@@ -36,6 +37,23 @@ const ruleGroupDefs = {
 
 const rules: FmeaRule[] = [
   // 00 - General Rules
+  {
+    id: '00-1-0-07',
+    description: '在 `scope="full_doc"` 的场景下，Agent 返回的 `nodes` 列表绝不能修改或删除任何从 `modifiedStructure` 中接收到的节点的 `uuid` 和 `parentId`。',
+    groupId: 'structureStability',
+    remark: '这是保证用户编辑内容不被 AI 覆盖的核心规则，是系统数据一致性的基石。',
+    check: (data, type) => {
+      return { status: 'info', details: '此规则需要在请求和响应之间进行比较，当前无法在仅有响应数据的情况下进行验证。' };
+    },
+  },
+  {
+    id: '00-1-0-08',
+    description: 'Agent 只能在现有结构上添加新节点。',
+    groupId: 'structureStability',
+    check: (data, type) => {
+      return { status: 'info', details: '此规则需要在请求和响应之间进行比较，当前无法在仅有响应数据的情况下进行验证。' };
+    },
+  },
   {
     id: '00-1-1-10',
     description: '(需求分析特定) 响应中 `nodes` 数组的长度上限为 100。',
@@ -488,6 +506,7 @@ const rules: FmeaRule[] = [
       const invalidActions = actions.filter(n => {
         const extra = n.extra || {};
         const hasDetection = extra.detection !== undefined && extra.detection !== null;
+        // For PFMEA, detection is only for category 2 (日常探测控制)
         return (extra.category === 2 && !hasDetection) || (extra.category !== 2 && hasDetection);
       });
       if (invalidActions.length > 0) {
@@ -498,19 +517,39 @@ const rules: FmeaRule[] = [
   },
   {
     id: '03-1-0-06',
-    description: '`failureNet` 用于连接 `mode` 类型的节点。',
+    description: '`featureNet` 用于连接结构性节点；`failureNet` 用于连接 `mode` 类型的节点。',
     groupId: 'network',
     check: (data, type) => {
       if (type !== 'pfmea') return { status: 'info', details: '该规则仅适用于PFMEA。' };
       const pfmeaData = data as PFMEAAnalysisResponse;
-      if (!pfmeaData.failureNet) return { status: 'success' };
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
-      const invalidLinks = pfmeaData.failureNet.filter(link => {
-        const fromNode = nodeMap.get(link.from.toString());
-        return !fromNode || fromNode.nodeType !== 'mode';
-      });
-      if (invalidLinks.length > 0) {
-        return { status: 'error', details: `failureNet 中发现 ${invalidLinks.length} 个连接不源自 'mode' 节点。` };
+      const errors = [];
+      const failureNodeTypes = new Set(['mode', 'effect', 'cause', 'action']);
+
+      if (pfmeaData.featureNet) {
+        const invalidLinks = pfmeaData.featureNet.filter(link => {
+          const fromNode = nodeMap.get(link.from.toString());
+          const toNode = nodeMap.get(link.to.toString());
+          return !fromNode || !toNode || failureNodeTypes.has(fromNode.nodeType) || failureNodeTypes.has(toNode.nodeType);
+        });
+        if (invalidLinks.length > 0) {
+          errors.push(`featureNet 中包含 ${invalidLinks.length} 个涉及失效节点的连接。`);
+        }
+      }
+
+      if (pfmeaData.failureNet) {
+        const invalidLinks = pfmeaData.failureNet.filter(link => {
+          const fromNode = nodeMap.get(link.from.toString());
+          const toNode = nodeMap.get(link.to.toString());
+          return !fromNode || fromNode.nodeType !== 'mode' || !toNode;
+        });
+        if (invalidLinks.length > 0) {
+          errors.push(`failureNet 中发现 ${invalidLinks.length} 个连接不源自 'mode' 节点。`);
+        }
+      }
+
+      if (errors.length > 0) {
+        return { status: 'error', details: errors.join(' ') };
       }
       return { status: 'success' };
     },
@@ -566,9 +605,6 @@ export function runAllRules(data: FmeaApiResponse, type: ApiResponseType | null)
   });
 
   const grouped = allRuleItems.reduce((acc, item) => {
-    // Skip 'info' status rules from appearing in the final result lists
-    if (item.status === 'info') return acc;
-    
     const { groupId, ...ruleItem } = item;
     if (!acc[groupId]) {
       acc[groupId] = [];
@@ -577,7 +613,7 @@ export function runAllRules(data: FmeaApiResponse, type: ApiResponseType | null)
     return acc;
   }, {} as Record<string, RuleItem[]>);
 
-  const statusPriority: Record<RuleItemStatus, number> = { error: 4, warning: 3, success: 2, info: 1 };
+  const statusPriority: Record<RuleItemStatus, number> = { error: 4, warning: 3, info: 2, success: 1 };
 
   const result: RuleGroup[] = Object.keys(grouped).map(key => {
     const groupId = key as keyof typeof ruleGroupDefs;
