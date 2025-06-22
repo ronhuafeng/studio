@@ -1,5 +1,5 @@
 
-import type { FmeaApiResponse, ApiResponseType, FmeaNode, DFMEAAnalysisResponse, PFMEAAnalysisResponse } from '@/types/fmea';
+import type { FmeaApiResponse, ApiResponseType, FmeaNode, DFMEAAnalysisResponse, PFMEAAnalysisResponse, BaseApiNode } from '@/types/fmea';
 import { parseJsonWithBigInt } from './bigint-utils';
 
 export type RuleItemStatus = 'success' | 'error' | 'warning' | 'info';
@@ -108,11 +108,10 @@ const rules: FmeaRule[] = [
     check: (data, type) => {
       if (type !== 'requirements') return { status: 'success', details: '该规则仅适用于需求分析。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
-      const chaNodeIds = new Set(data.nodes.filter(n => n.nodeType === 'cha').map(n => n.uuid.toString()));
-      const childrenOfCha = data.nodes.filter(n => chaNodeIds.has(n.parentId.toString()));
-      if (childrenOfCha.length > 0) {
-        const parentIds = [...new Set(childrenOfCha.map(c => c.parentId.toString()))];
-        return { status: 'error', details: `cha 节点 (UUIDs: ${parentIds.slice(0, 3).join(', ')}) 不能有子节点。` };
+      const chaNodesWithChildren = data.nodes.filter(n => n.nodeType === 'cha' && data.nodes.some(child => child.parentId === n.uuid));
+      if (chaNodesWithChildren.length > 0) {
+        const uuids = chaNodesWithChildren.map(n => n.uuid.toString()).join(', ');
+        return { status: 'error', details: `${chaNodesWithChildren.length} 个 'cha' 节点不应有子节点。违规 cha 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -131,7 +130,8 @@ const rules: FmeaRule[] = [
       const directChildren = data.nodes.filter(n => n.parentId === root.uuid);
       const invalidChildren = directChildren.filter(c => c.nodeType === 'func' || c.nodeType === 'cha');
       if (invalidChildren.length > 0) {
-        return { status: 'warning', details: `根节点下不应直接挂载 func 或 cha 节点 (发现 ${invalidChildren.length} 个)。` };
+        const uuids = invalidChildren.map(n => `${n.uuid}(${n.nodeType})`).join(', ');
+        return { status: 'warning', details: `根节点下不应直接挂载 func 或 cha 节点。发现 ${invalidChildren.length} 个违规节点: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -144,16 +144,11 @@ const rules: FmeaRule[] = [
     check: (data, type) => {
       if (type !== 'requirements') return { status: 'success', details: '该规则仅适用于需求分析。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
-      const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
-      const funcsWithFuncChildren = data.nodes.filter(n => {
-        if (n.nodeType !== 'func') return false;
-        const parent = nodeMap.get(n.parentId.toString());
-        return parent?.nodeType === 'func';
-      });
+      const parentFuncs = data.nodes.filter(n => n.nodeType === 'func' && data.nodes.some(child => child.parentId === n.uuid && child.nodeType === 'func'));
 
-      if (funcsWithFuncChildren.length > 0) {
-        const parentIds = [...new Set(funcsWithFuncChildren.map(n => n.parentId.toString()))];
-        return { status: 'warning', details: `func 节点 (UUIDs: ${parentIds.slice(0,3).join(', ')}) 不应有 func 子节点。` };
+      if (parentFuncs.length > 0) {
+        const uuids = parentFuncs.map(n => n.uuid.toString()).join(', ');
+        return { status: 'warning', details: `func 节点不应有 func 子节点。发现 ${parentFuncs.length} 个违规的父节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -189,7 +184,11 @@ const rules: FmeaRule[] = [
       if (!systemRoot) return { status: 'info', details: '未找到 system 根节点，跳过此检查。' };
       const directSubsystems = data.nodes.filter(n => n.parentId === systemRoot.uuid && n.nodeType === 'subsystem');
       if (directSubsystems.length !== 1) {
-        return { status: 'error', details: `system 根节点 (UUID: ${systemRoot.uuid}) 下发现 ${directSubsystems.length} 个 subsystem 直接子节点，应为 1 个。` };
+        let details = `system 根节点 (UUID: ${systemRoot.uuid}) 下发现 ${directSubsystems.length} 个 subsystem 直接子节点，应为 1 个。`;
+        if (directSubsystems.length > 1) {
+          details += ` 节点 UUIDs: ${directSubsystems.map(n => n.uuid).join(', ')}`;
+        }
+        return { status: 'error', details };
       }
       return { status: 'success' };
     },
@@ -202,14 +201,14 @@ const rules: FmeaRule[] = [
       if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
       if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
       
-      const parentMap = new Map<string, FmeaNode[]>();
+      const parentMap = new Map<string, BaseApiNode[]>();
       data.nodes.forEach(n => {
         const parentId = n.parentId.toString();
         if (!parentMap.has(parentId)) parentMap.set(parentId, []);
         parentMap.get(parentId)!.push(n);
       });
 
-      const getAllDescendants = (nodeId: bigint): FmeaNode[] => {
+      const getAllDescendants = (nodeId: bigint): BaseApiNode[] => {
           const children = parentMap.get(nodeId.toString()) || [];
           let descendants = [...children];
           children.forEach(child => {
@@ -220,7 +219,7 @@ const rules: FmeaRule[] = [
 
       const structuralTypes = ['system', 'subsystem', 'component'];
       const subsystemNodes = data.nodes.filter(n => n.nodeType === 'subsystem');
-      const invalidNodes: FmeaNode[] = [];
+      const invalidNodes: BaseApiNode[] = [];
 
       subsystemNodes.forEach(subsystem => {
           const descendants = getAllDescendants(subsystem.uuid);
@@ -232,7 +231,8 @@ const rules: FmeaRule[] = [
       });
       
       if (invalidNodes.length > 0) {
-        return { status: 'error', details: `subsystem 节点下发现非 component 类型的结构性后代节点 (例如 UUID: ${invalidNodes[0].uuid}, 类型: ${invalidNodes[0].nodeType})。` };
+        const uuids = invalidNodes.map(n => `${n.uuid}(${n.nodeType})`).join(', ');
+        return { status: 'error', details: `subsystem 节点下发现 ${invalidNodes.length} 个非 component 类型的结构性后代节点。违规节点 (UUID/类型): ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -251,7 +251,8 @@ const rules: FmeaRule[] = [
         return !parent || !['system', 'subsystem', 'component'].includes(parent.nodeType);
       });
       if (invalidFuncs.length > 0) {
-        return { status: 'error', details: `${invalidFuncs.length} 个 func 节点的父节点类型错误 (例如 UUID: ${invalidFuncs[0].uuid})。` };
+        const uuids = invalidFuncs.map(n => n.uuid.toString()).join(', ');
+        return { status: 'error', details: `${invalidFuncs.length} 个 func 节点的父节点类型错误。违规 func 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -270,7 +271,8 @@ const rules: FmeaRule[] = [
         return !parent || parent.nodeType !== 'func';
       });
       if (invalidChas.length > 0) {
-        return { status: 'error', details: `${invalidChas.length} 个 cha 节点的父节点类型不为 'func' (例如 UUID: ${invalidChas[0].uuid})。` };
+        const uuids = invalidChas.map(n => n.uuid.toString()).join(', ');
+        return { status: 'error', details: `${invalidChas.length} 个 cha 节点的父节点类型不为 'func'。违规 cha 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -289,7 +291,8 @@ const rules: FmeaRule[] = [
         return !parent || !['func', 'cha'].includes(parent.nodeType);
       });
       if (invalidFailures.length > 0) {
-        return { status: 'error', details: `${invalidFailures.length} 个 failure 节点的父节点类型错误 (例如 UUID: ${invalidFailures[0].uuid})。` };
+        const uuids = invalidFailures.map(n => n.uuid.toString()).join(', ');
+        return { status: 'error', details: `${invalidFailures.length} 个 failure 节点的父节点类型错误。违规 failure 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -308,7 +311,8 @@ const rules: FmeaRule[] = [
         return (extra.category === 2 && !hasDetection) || (extra.category !== 2 && hasDetection);
       });
       if (invalidActions.length > 0) {
-        return { status: 'error', details: `${invalidActions.length} 个 action 节点的 detection 字段与 category 不匹配 (例如 UUID: ${invalidActions[0].uuid})。` };
+        const uuids = invalidActions.map(n => n.uuid.toString()).join(', ');
+        return { status: 'error', details: `${invalidActions.length} 个 action 节点的 detection 字段与 category 不匹配。违规 action 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -328,7 +332,10 @@ const rules: FmeaRule[] = [
           const toNode = nodeMap.get(link.to.toString());
           return !fromNode || fromNode.nodeType !== 'func' || !toNode || toNode.nodeType !== 'func';
         });
-        if (invalidLinks.length > 0) errors.push(`featureNet 中包含 ${invalidLinks.length} 个非 func 节点间的连接。`);
+        if (invalidLinks.length > 0) {
+          const linkDetails = invalidLinks.map(l => `${l.from}->${l.to}`).join('; ');
+          errors.push(`featureNet 中包含 ${invalidLinks.length} 个非 func 节点间的连接: ${linkDetails}`);
+        }
       }
       if (dfmeaData.failureNet) {
         const invalidLinks = dfmeaData.failureNet.filter(link => {
@@ -336,7 +343,10 @@ const rules: FmeaRule[] = [
           const toNode = nodeMap.get(link.to.toString());
           return !fromNode || fromNode.nodeType !== 'failure' || !toNode || toNode.nodeType !== 'failure';
         });
-        if (invalidLinks.length > 0) errors.push(`failureNet 中包含 ${invalidLinks.length} 个非 failure 节点间的连接。`);
+        if (invalidLinks.length > 0) {
+          const linkDetails = invalidLinks.map(l => `${l.from}->${l.to}`).join('; ');
+          errors.push(`failureNet 中包含 ${invalidLinks.length} 个非 failure 节点间的连接: ${linkDetails}`);
+        }
       }
       if (errors.length > 0) {
         return { status: 'error', details: errors.join(' ') };
@@ -359,7 +369,8 @@ const rules: FmeaRule[] = [
         return !startNode || startNode.nodeType !== 'component' || !endNode || endNode.nodeType !== 'component';
       });
       if (invalidInterfaces.length > 0) {
-        return { status: 'error', details: `发现 ${invalidInterfaces.length} 个 interface 未在 component 节点之间建立。` };
+        const details = invalidInterfaces.map(i => `${i.startId}->${i.endId}`).join('; ');
+        return { status: 'error', details: `发现 ${invalidInterfaces.length} 个 interface 未在 component 节点之间建立。违规连接: ${details}` };
       }
       return { status: 'success' };
     },
@@ -380,7 +391,8 @@ const rules: FmeaRule[] = [
         return startNode.parentId !== i.structureId;
       });
       if (invalidInterfaces.length > 0) {
-        return { status: 'error', details: `发现 ${invalidInterfaces.length} 个 interface 的 structureId 与 start/end 节点的父ID不匹配。` };
+        const details = invalidInterfaces.map(i => `(structureId: ${i.structureId}, startId: ${i.startId}, endId: ${i.endId})`).join('; ');
+        return { status: 'error', details: `发现 ${invalidInterfaces.length} 个 interface 的 structureId 与 start/end 节点的父ID不匹配。违规项: ${details}` };
       }
       return { status: 'success' };
     },
@@ -401,7 +413,8 @@ const rules: FmeaRule[] = [
         return hasCha && hasFailure;
       });
       if (invalidFuncs.length > 0) {
-        return { status: 'warning', details: `func 节点 (UUIDs: ${invalidFuncs.map(n => n.uuid).slice(0,3).join(', ')}) 同时拥有 cha 和 failure 子节点。` };
+        const uuids = invalidFuncs.map(n => n.uuid.toString()).join(', ');
+        return { status: 'warning', details: `func 节点同时拥有 cha 和 failure 子节点。违规 func 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -438,7 +451,8 @@ const rules: FmeaRule[] = [
         return fromNode && toNode && fromNode.parentId === toNode.parentId;
       });
       if (invalidLinks.length > 0) {
-        return { status: 'warning', details: `发现 ${invalidLinks.length} 个网络连接建立在同级节点之间。` };
+        const details = invalidLinks.map(l => `${l.from}->${l.to}`).join('; ');
+        return { status: 'warning', details: `发现 ${invalidLinks.length} 个网络连接建立在同级节点之间。违规连接: ${details}` };
       }
       return { status: 'success' };
     },
@@ -477,7 +491,8 @@ const rules: FmeaRule[] = [
         return parent?.nodeType === 'item' && n.extra?.type !== 'product';
       });
       if (invalidChas.length > 0) {
-        return { status: 'error', details: `cha 节点 (UUID: ${invalidChas[0].uuid}) 的父节点是 item，但其 extra.type 不为 'product'。` };
+        const uuids = invalidChas.map(n => n.uuid.toString()).join(', ');
+        return { status: 'error', details: `cha 节点的父节点是 item，但其 extra.type 不为 'product'。违规 cha 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -496,7 +511,8 @@ const rules: FmeaRule[] = [
         return parent?.nodeType === 'elem' && n.extra?.type !== 'process';
       });
       if (invalidChas.length > 0) {
-        return { status: 'error', details: `cha 节点 (UUID: ${invalidChas[0].uuid}) 的父节点是 elem，但其 extra.type 不为 'process'。` };
+        const uuids = invalidChas.map(n => n.uuid.toString()).join(', ');
+        return { status: 'error', details: `cha 节点的父节点是 elem，但其 extra.type 不为 'process'。违规 cha 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -515,7 +531,8 @@ const rules: FmeaRule[] = [
         return !parent || !['item', 'step', 'step2', 'elem'].includes(parent.nodeType);
       });
       if (invalidFuncs.length > 0) {
-        return { status: 'error', details: `${invalidFuncs.length} 个 func 节点的父节点类型错误 (例如 UUID: ${invalidFuncs[0].uuid})。` };
+        const uuids = invalidFuncs.map(n => n.uuid.toString()).join(', ');
+        return { status: 'error', details: `${invalidFuncs.length} 个 func 节点的父节点类型错误。违规 func 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -535,7 +552,8 @@ const rules: FmeaRule[] = [
         return (extra.category === 2 && !hasDetection) || (extra.category !== 2 && hasDetection);
       });
       if (invalidActions.length > 0) {
-        return { status: 'error', details: `${invalidActions.length} 个 action 节点的 detection 字段与 category 不匹配 (例如 UUID: ${invalidActions[0].uuid})。` };
+        const uuids = invalidActions.map(n => n.uuid.toString()).join(', ');
+        return { status: 'error', details: `${invalidActions.length} 个 action 节点的 detection 字段与 category 不匹配。违规 action 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -549,26 +567,31 @@ const rules: FmeaRule[] = [
       const pfmeaData = data as PFMEAAnalysisResponse;
       const nodeMap = new Map(data.nodes.map(n => [n.uuid.toString(), n]));
       const errors = [];
-      const failureNodeTypes = new Set(['mode', 'effect', 'cause', 'action']);
+      const structuralNodeTypes = new Set(['item', 'step', 'step2', 'elem', 'func', 'cha']);
 
       if (pfmeaData.featureNet) {
         const invalidLinks = pfmeaData.featureNet.filter(link => {
           const fromNode = nodeMap.get(link.from.toString());
           const toNode = nodeMap.get(link.to.toString());
-          return !fromNode || !toNode || failureNodeTypes.has(fromNode.nodeType) || failureNodeTypes.has(toNode.nodeType);
+          return !fromNode || !toNode || !structuralNodeTypes.has(fromNode.nodeType) || !structuralNodeTypes.has(toNode.nodeType);
         });
         if (invalidLinks.length > 0) {
-          errors.push(`featureNet 中包含 ${invalidLinks.length} 个涉及失效节点的连接。`);
+          const linkDetails = invalidLinks.map(l => `${l.from}(${nodeMap.get(l.from.toString())?.nodeType})->${l.to}(${nodeMap.get(l.to.toString())?.nodeType})`).join('; ');
+          errors.push(`featureNet 中包含 ${invalidLinks.length} 个非结构性节点间的连接: ${linkDetails}`);
         }
       }
 
       if (pfmeaData.failureNet) {
         const invalidLinks = pfmeaData.failureNet.filter(link => {
           const fromNode = nodeMap.get(link.from.toString());
-          return !fromNode || fromNode.nodeType !== 'mode';
+          const toNode = nodeMap.get(link.to.toString());
+          // Failure net connects 'mode', 'effect', 'cause', 'action'
+          const failureTypes = ['mode', 'effect', 'cause', 'action'];
+          return !fromNode || !toNode || !failureTypes.includes(fromNode.nodeType) || !failureTypes.includes(toNode.nodeType);
         });
         if (invalidLinks.length > 0) {
-          errors.push(`failureNet 中发现 ${invalidLinks.length} 个连接不源自 'mode' 节点。`);
+          const linkDetails = invalidLinks.map(l => `${l.from}(${nodeMap.get(l.from.toString())?.nodeType})->${l.to}(${nodeMap.get(l.to.toString())?.nodeType})`).join('; ');
+          errors.push(`failureNet 中 ${invalidLinks.length} 个连接不完全在失效节点（mode, effect, cause, action）之间: ${linkDetails}`);
         }
       }
 
@@ -594,7 +617,8 @@ const rules: FmeaRule[] = [
         return parent && structuralNodeTypes.includes(parent.nodeType);
       });
       if (invalidChas.length > 0) {
-        return { status: 'warning', details: `发现 ${invalidChas.length} 个 cha 节点直接挂在结构节点下，建议挂在 func 节点下。` };
+        const uuids = invalidChas.map(n => n.uuid.toString()).join(', ');
+        return { status: 'warning', details: `发现 ${invalidChas.length} 个 cha 节点直接挂在结构节点下，建议挂在 func 节点下。违规 cha 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
