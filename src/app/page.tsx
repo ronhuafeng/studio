@@ -21,7 +21,6 @@ import type {
 import { DataInputPanel } from "@/components/fmea/DataInputPanel";
 import { parseJsonWithBigInt } from "@/lib/bigint-utils";
 import { GraphViewerWrapper } from "@/components/fmea/GraphViewer";
-import { PropertiesEditorPanel } from "@/components/fmea/PropertiesEditorPanel";
 import { UnifiedPropertiesEditor } from "@/components/fmea/UnifiedPropertiesEditor";
 import { BaseInfoDisplay } from "@/components/fmea/BaseInfoDisplay";
 import { useToast } from "@/hooks/use-toast";
@@ -605,7 +604,7 @@ export default function FmeaVisualizerPage() {
         "flex flex-col",
         isFullScreen
           ? "fixed inset-0 z-50 bg-background p-4"
-          : "flex-grow h-[calc(100%-2rem)] md:h-full md:w-1/2 lg:w-3/5 order-first md:order-none"
+          : "flex-grow h-[calc(100%-2rem)] md:h-full order-first md:order-none"
       )}>
         <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col h-full">
           <TabsList className="mb-2 shrink-0">
@@ -736,7 +735,7 @@ export default function FmeaVisualizerPage() {
 
       <div className={cn(
         "md:w-1/4 lg:w-1/5 min-w-[300px] max-h-full overflow-y-auto",
-        isFullScreen && "hidden"
+        (isFullScreen || activeTab === 'verification') && "hidden"
       )}>
         <UnifiedPropertiesEditor
           nodeData={selectedNode}
