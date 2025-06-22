@@ -1,0 +1,1132 @@
+openapi: 3.0.0
+info:
+  title: FMEA Agent API
+  version: 1.1.9
+  description: |
+    Platform 与智能 Agent 交互的接口规范，支持文档上传及需求、DFMEA、PFMEA 分析.
+    Version 1.1.9:
+    - [Spec Enhancement] Aligned all enum-like fields with Pydantic `Literal` types by adding the `enum` keyword.
+    - [Spec Fix] Corrected the `enum` list for `PFMEAElementExtra.em` to include all 6 types.
+    - [Spec Fix] Added `required` constraints to match Pydantic models.
+    - [Spec Fix] Added missing `extra` object definitions to several node types (e.g., `func`, `item`, `mode`) to align with Pydantic's `ExtraDataModel`.
+    Version 1.1.8:
+    - [PFMEA] Enhanced 'step', 'step2', and 'cha' nodes with detailed 'extra' properties.
+    - [DFMEA] Enhanced 'cha' node with detailed 'extra' properties.
+    - [DFMEA] Added 'interface' object to the DFMEA response for describing component interactions.
+    - Enriched descriptions for various enum-like fields based on implementation examples.
+    - Updated and expanded request/response examples to reflect all new features.
+servers:
+  - url: https://api.example.com/v1
+
+paths:
+  /documents/upload:
+    post:
+      summary: 文档上传
+      description: 接收文档 URL 列表，Agent 自动下载文件。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadRequest'
+            examples:
+              uploadStandardDoc:
+                summary: 上传标准文件示例
+                value:
+                  sessionId: "session_abc123_upload"
+                  urls:
+                    - "https://example.com/docs/GBT12265-2021.pdf"
+      responses:
+        '200':
+          description: 上传成功，返回文档信息列表。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentUploadResponse'
+              examples:
+                uploadSuccessResponse:
+                  summary: 上传成功响应示例
+                  value:
+                    - documentId: "doc_std_gbt12265_xyz"
+                      fileName: "GBT12265-2021.pdf"
+                      uploadTime: "2023-10-27T10:30:00Z"
+
+  /analysis/requirements:
+    post:
+      summary: 生成需求管理节点树
+      description: |
+        根据 scope 执行不同阶段的分析:
+        - scope="structure_only": 基于文档生成初步的需求结构骨架。
+        - scope="full_doc": 基于平台提供的 modifiedStructure (用户调整后的需求结构) 进行内容填充和深化分析。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequirementsAnalysisRequest'
+            examples:
+              requirements_structure_only:
+                summary: 需求分析 - 仅结构阶段
+                value:
+                  sessionId: "session_req_struct_001"
+                  scope: "structure_only"
+                  documentIds: ["doc_std_gbt12265_xyz"]
+                  extraPayload: "{\"targetStandardVersion\": \"2021-latest\", \"initialPrompt\": \"Extract key requirements related to safety distances.\"}"
+              requirements_full_doc:
+                summary: 需求分析 - 内容填充阶段
+                value:
+                  sessionId: "session_req_fulldoc_001"
+                  scope: "full_doc"
+                  nodes: [{ "uuid": 5 }]
+                  modifiedStructure:
+                    nodes:
+                      - uuid: 1
+                        parentId: -1
+                        nodeType: "requirement"
+                        description: "修改后的：机械设计应符合 GB/T 12265—2021 标准，防止人体部位挤压。"
+                        extra: { partNo: "MACHINE_SAFETY_SYSTEM", partName: "机械安全系统" }
+                      - uuid: 5
+                        parentId: 3 
+                        nodeType: "cha"
+                        description: "全身间距 ≥ 550mm (用户修改)"
+                        extra: {
+                          req_spe: "全身间距应符合GB/T 12265 表1",
+                          spe_tol: "d ≥ 550mm",
+                          classification: "KPC"
+                        }
+                  extraPayload: "{\"userEditSummary\": \"User increased 全身间距 to 550mm.\"}"
+      responses:
+        '200':
+          description: 返回需求管理节点列表。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementAnalysisResponse'
+              examples:
+                gbt12265_requirements_response:
+                  summary: GB/T 12265 需求提取示例
+                  value:
+                    nodes:
+                      - uuid: 1
+                        parentId: -1
+                        nodeType: "requirement"
+                        description: "机械设计应符合 GB/T 12265—2021 标准，防止人体部位挤压。"
+                        extra:
+                          partNo: "GENERIC_MACHINE_001"
+                          partName: "通用机械设备"
+                      - uuid: 4
+                        parentId: 1
+                        nodeType: "func"
+                        description: "提供全身安全防护间距"
+                        extra: {}
+                      - uuid: 5
+                        parentId: 4
+                        nodeType: "cha"
+                        description: "全身间距 ≥ 500mm"
+                        extra: {}
+
+  /analysis/dfmea:
+    post:
+      summary: 生成 DFMEA 分析结果
+      description: |
+        根据 scope 执行不同阶段的分析:
+        - scope="structure_only": 基于文档生成初步的 DFMEA 结构骨架。
+        - scope="full_doc": 基于平台提供的 modifiedStructure (用户调整后的 DFMEA 结构) 进行内容填充和深化分析。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DFMEAAnalysisRequest'
+            examples:
+              dfmea_structure_only:
+                summary: DFMEA分析 - 仅结构阶段
+                value:
+                  sessionId: "session_dfmea_struct_001"
+                  scope: "structure_only"
+                  documentIds: ["doc_project_alpha_spec.pdf"]
+                  extraPayload: "{\"focusComponent\": \"PowerSupplyUnit\", \"initialPrompt\": \"Generate DFMEA structure for the PSU focusing on overheating risks.\"}"
+              dfmea_full_doc:
+                summary: DFMEA分析 - 内容填充阶段
+                value:
+                  sessionId: "session_dfmea_fulldoc_001"
+                  scope: "full_doc"
+                  nodes: [{ "uuid": 202 }]
+                  modifiedStructure:
+                    baseInfo:
+                        name: "修改版通用机械设备DFMEA"
+                        partNo: "MOD_MACHINE_001"
+                        partName: "修改版通用机械设备"
+                        evaluationCriteria: "AIAG-VDA & Internal Standards"
+                    nodes:
+                      - uuid: 200
+                        parentId: -1
+                        nodeType: "system"
+                        description: "修改版通用机械设备"
+                        extra: { dr: 0 }
+                      - uuid: 202
+                        parentId: 201
+                        nodeType: "component"
+                        description: "加固型手指防护结构 (用户添加材料信息)"
+                        extra: { dr: 0, material: "Steel-X2 Enhanced" }
+                      - uuid: 214
+                        parentId: 213
+                        nodeType: "cha"
+                        description: "手指防护间距 ≥ 25mm"
+                        extra:
+                          req_spe: "手指防护间距应符合GB/T 12265 表1"
+                          spe_tol: "d ≥ 25mm"
+                          classification: "KPC"
+                      - uuid: 222
+                        parentId: 214
+                        nodeType: "failure"
+                        description: "手指防护间距 < 25mm (用户确认)"
+                        extra: { failureType: 1, severity: 10 }
+      responses:
+        '200':
+          description: 返回 DFMEA 分析结果。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DFMEAAnalysisResponse'
+              examples:
+                gbt12265_dfmea_response:
+                  summary: GB/T 12265 安全防护间距系统 DFMEA 示例
+                  value:
+                    baseInfo:
+                      name: "通用机械设备安全间距DFMEA"
+                      partNo: "GENERIC_MACHINE_SGS_001"
+                      partName: "安全防护间距系统"
+                      evaluationCriteria: "GB/T 12265-2021"
+                    nodes:
+                      - uuid: 1
+                        parentId: -1
+                        nodeType: "system"
+                        description: "通用机械设备"
+                        extra: { dr: 0 }
+                      - uuid: 2
+                        parentId: 1
+                        nodeType: "subsystem"
+                        description: "安全防护系统"
+                        extra: { dr: 0 }
+                      - uuid: 3
+                        parentId: 2
+                        nodeType: "component"
+                        description: "手指防护结构"
+                        extra: { dr: 0 }
+                      - uuid: 4
+                        parentId: 2
+                        nodeType: "component"
+                        description: "身体防护栏"
+                        extra: { dr: 1 }
+                      - uuid: 13
+                        parentId: 3
+                        nodeType: "func"
+                        description: "防止手指进入危险区域"
+                        extra: { category: 0 }
+                      - uuid: 14
+                        parentId: 13
+                        nodeType: "cha"
+                        description: "手指防护间距 ≥ 25mm"
+                        extra:
+                          req_spe: "符合GB/T 12265 表1中对手指的安全距离要求"
+                          spe_tol: "d ≥ 25mm"
+                          classification: "KPC"
+                      - uuid: 22
+                        parentId: 14
+                        nodeType: "failure"
+                        description: "手指防护间距 < 25mm"
+                        extra: { failureType: 1, severity: 9 }
+                      - uuid: 42
+                        parentId: 22
+                        nodeType: "action"
+                        description: "出厂前使用标准量规进行100%检测"
+                        extra: { category: 2, detection: 4 }
+                    featureNet:
+                      - from: 14
+                        to: 13
+                        type: 1
+                    failureNet:
+                      - from: 22
+                        to: 21
+                        type: 1
+                    interface:
+                      - structureId: 2
+                        startId: 3
+                        endId: 4
+                        type: 1
+                        interaction: 0
+                        effect: 0
+                        description: "手指防护结构通过螺栓固定在身体防护栏上"
+                        virtualParts: "固定螺栓 M6*12"
+
+  /analysis/pfmea:
+    post:
+      summary: 生成 PFMEA 分析结果
+      description: |
+        根据 scope 执行不同阶段的分析:
+        - scope="structure_only": 基于文档生成初步的 PFMEA 结构骨架。
+        - scope="full_doc": 基于平台提供的 modifiedStructure (用户调整后的 PFMEA 结构) 进行内容填充和深化分析。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PFMEAAnalysisRequest'
+            examples:
+              pfmea_structure_only:
+                summary: PFMEA分析 - 仅结构阶段
+                value:
+                  sessionId: "session_pfmea_struct_001"
+                  scope: "structure_only"
+                  documentIds: ["doc_assembly_line_beta_sop.docx"]
+                  extraPayload: "{\"processName\": \"PCB Soldering Process\"}"
+              pfmea_full_doc:
+                summary: PFMEA分析 - 内容填充阶段
+                value:
+                  sessionId: "session_pfmea_fulldoc_001"
+                  scope: "full_doc"
+                  modifiedStructure:
+                    baseInfo:
+                        name: "PCB焊接过程PFMEA (V2)"
+                        partNo: "PCB_ASSY_SOLDER_V2"
+                        partName: "PCB焊接与检验过程"
+                        evaluationCriteria: "Internal SOP & IPC Standards"
+                    nodes:
+                      - uuid: 1
+                        parentId: -1
+                        nodeType: "item"
+                        description: "PCB板焊接总过程 (用户确认)"
+                        extra: {}
+                      - uuid: 2
+                        parentId: 1
+                        nodeType: "step"
+                        description: "手工焊接"
+                        extra: { keyProcess: true, preSteps: [], category: 1 }
+                      - uuid: 4
+                        parentId: 2
+                        nodeType: "elem"
+                        description: "熟练焊接工 (用户指定)"
+                        extra: { em: 1 }
+                      - uuid: 21
+                        parentId: 12
+                        nodeType: "mode"
+                        description: "焊点虚焊或冷焊 (用户确认)"
+                        extra: {}
+      responses:
+        '200':
+          description: 返回 PFMEA 分析结果。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PFMEAAnalysisResponse'
+              examples:
+                gbt12265_pfmea_response:
+                  summary: GB/T 12265 安全间距符合性验证过程 PFMEA 示例
+                  value:
+                    baseInfo:
+                      name: "通用机械安全间距符合性验证PFMEA"
+                      partNo: "MACHINE_ASSEMBLY_PROC_001"
+                      partName: "机械装配与安全间距验证过程"
+                      evaluationCriteria: "GB/T 12265-2021 & Assembly Work Instructions"
+                    nodes:
+                      - uuid: 1
+                        parentId: -1
+                        nodeType: "item"
+                        description: "机械总装配"
+                        extra: {}
+                      - uuid: 2
+                        parentId: 1
+                        nodeType: "step"
+                        description: "安装手指防护结构"
+                        extra: { keyProcess: true, preSteps: [], category: 1 }
+                      - uuid: 4
+                        parentId: 2
+                        nodeType: "elem"
+                        description: "装配工"
+                        extra: { em: 1 }
+                      - uuid: 11
+                        parentId: 2
+                        nodeType: "func"
+                        description: "将手指防护结构安装到指定位置"
+                        extra: {}
+                      - uuid: 12
+                        parentId: 11
+                        nodeType: "cha"
+                        description: "安装位置公差"
+                        extra: { type: "process", req_spe: "安装位置公差应在±0.5mm内", spe_tol: "Δx, Δy, Δz ≤ 0.5mm", classification: "QCC" }
+                      - uuid: 21
+                        parentId: 12
+                        nodeType: "mode"
+                        description: "安装位置超出公差 (+/- 0.5mm)"
+                        extra: {}
+                      - uuid: 110
+                        parentId: 1
+                        nodeType: "cha"
+                        description: "整机安全防护符合性"
+                        extra: { type: "product", req_spe: "符合GB/T 12265", spe_tol: "100% Pass", classification: "KPC" }
+                      - uuid: 111
+                        parentId: 110
+                        nodeType: "effect"
+                        description: "操作员可接触到危险区域，造成人身伤害"
+                        extra: { category: 3, severity: 10 }
+                      - uuid: 120
+                        parentId: 4
+                        nodeType: "cause"
+                        description: "工人未按作业指导书操作"
+                        extra: { occurrence: 5 }
+                      - uuid: 40
+                        parentId: 21
+                        nodeType: "action"
+                        description: "使用三坐标测量仪抽检安装位置"
+                        extra: { category: 2, detection: 6 }
+                      - uuid: 41
+                        parentId: 120
+                        nodeType: "action"
+                        description: "对装配工进行上岗强化培训"
+                        extra: { category: 1 }
+                    featureNet:
+                      - from: 12
+                        to: 110
+                        type: 2
+                    failureNet:
+                      - from: 21
+                        to: 111
+                        type: 1
+                      - from: 21
+                        to: 120
+                        type: 2
+
+components:
+  schemas:
+    SessionableRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          description: 用于追踪请求上下文的会话ID (必选)
+        documentIds:
+          type: array
+          items:
+            type: string
+          description: 文档 ID 列表 (对于已经上传过的文件，可以添加到上下文中，
+            以便 Agent 在分析时使用这些文档的内容。后续会增加缓存支持，以加快分析速度)
+          nullable: true
+
+    DocumentUploadRequest:
+      allOf:
+        - $ref: '#/components/schemas/SessionableRequest'
+        - type: object
+          properties:
+            urls:
+              type: array
+              items:
+                type: string
+                format: uri
+              description: 文档 URL 列表
+          required: [urls]
+
+    DocumentUploadResponse:
+      type: object
+      properties:
+        documentId:
+          type: string
+          description: |
+            文档 ID，平台生成的唯一标识符，用于后续分析请求中引用
+            例如: "doc_std_gbt12265_xyz"
+        fileName:
+          type: string
+        uploadTime:
+          type: string
+          format: date-time
+      required: [documentId, fileName, uploadTime]
+
+    BaseAnalysisRequest:
+      allOf:
+        - $ref: '#/components/schemas/SessionableRequest'
+        - type: object
+          properties:
+            scope:
+              type: string
+              enum: [structure_only, full_doc]
+              description: "指定分析阶段: 'structure_only' (仅结构骨架) 或 'full_doc' (完整分析/内容填充)"
+            nodes:
+              type: array
+              items:
+                type: object
+                properties:
+                  uuid:
+                    type: integer
+                required: [uuid]
+              nullable: true
+              description: |
+                可选的，指定分析的焦点节点(uuid)列表。
+                如果提供，Agent 将在提供的结构(若有)或其内部结构中聚焦这些节点。
+                如果此字段未提供或其值为 `null`，Agent 将尝试对整个项目或默认范围进行分析.
+            extraPayload:
+              type: string
+              format: json
+              nullable: true
+              description: 平台传递给 Agent 的额外 JSON 字符串负载，用于补充更多上下文信息 (如附加prompt, 用户修改记录等)。Agent 需要自行解析此 JSON 字符串。
+          required: [scope]
+
+    BaseAnalysisNode:
+      type: object
+      properties:
+        uuid:
+          type: integer
+        parentId:
+          type: integer
+        nodeType:
+          type: string
+        description:
+          type: string
+      required:
+        - uuid
+        - parentId
+        - nodeType
+        - description
+
+    NetworkLink:
+      type: object
+      properties:
+        from:
+          type: integer
+          description: "源节点 ID"
+        to:
+          type: integer
+          description: "目标节点 ID"
+        type:
+          type: integer
+          description: "连接类型 (1-左连, 2-右连)"
+          enum: [1, 2]
+      required: [from, to, type]
+
+    ExtraDataModel:
+      type: object
+      description: "一个灵活的对象，用于保存任何额外的、非结构化的数据。"
+      additionalProperties: true
+
+    # --- Requirements Analysis Schemas ---
+    ModifiedRequirementsStructure:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequirementAnalysisNode'
+      description: 用户调整后的需求结构节点列表。
+
+    RequirementsAnalysisRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisRequest'
+        - type: object
+          properties:
+            modifiedStructure:
+              $ref: '#/components/schemas/ModifiedRequirementsStructure'
+              nullable: true
+              description: 在 scope='full_doc' 时，平台回传的用户修改后的需求结构。
+
+    RequirementNodeExtra:
+      type: object
+      properties:
+        partNo:
+          type: string
+        partName:
+          type: string
+
+    RequirementNodeType:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [requirement]
+            extra:
+              $ref: '#/components/schemas/RequirementNodeExtra'
+
+    FunctionNodeReqType:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [func]
+            extra:
+              $ref: '#/components/schemas/ExtraDataModel'
+
+    CharacteristicNodeReqType:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [cha]
+            extra:
+              $ref: '#/components/schemas/ExtraDataModel'
+
+    RequirementAnalysisNode:
+      oneOf:
+        - $ref: '#/components/schemas/RequirementNodeType'
+        - $ref: '#/components/schemas/FunctionNodeReqType'
+        - $ref: '#/components/schemas/CharacteristicNodeReqType'
+      discriminator:
+        propertyName: nodeType
+        mapping:
+          requirement: '#/components/schemas/RequirementNodeType'
+          func: '#/components/schemas/FunctionNodeReqType'
+          cha: '#/components/schemas/CharacteristicNodeReqType'
+
+    RequirementAnalysisResponse:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequirementAnalysisNode'
+      required: [nodes]
+
+    # --- DFMEA Analysis Schemas ---
+    DFMEABaseInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        partNo:
+          type: string
+        partName:
+          type: string
+        evaluationCriteria:
+          type: string
+      required: [name, partNo, partName, evaluationCriteria]
+
+    ModifiedDFMEAStructure:
+      type: object
+      properties:
+        baseInfo:
+          $ref: '#/components/schemas/DFMEABaseInfo'
+          nullable: true
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DFMEAAnalysisNode'
+      description: 用户调整后的DFMEA结构节点列表及基础信息。
+
+    DFMEAAnalysisRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisRequest'
+        - type: object
+          properties:
+            modifiedStructure:
+              $ref: '#/components/schemas/ModifiedDFMEAStructure'
+              nullable: true
+              description: 在 scope='full_doc' 时，平台回传的用户修改后的DFMEA结构。
+
+    DFMEAComponentExtra:
+      type: object
+      properties:
+        dr:
+          type: integer
+          description: "设计责任: 0-公司内部 (默认), 1-公司外部"
+          enum: [0, 1]
+
+    DFMEAFunctionExtra:
+      type: object
+      properties:
+        category:
+          type: integer
+          nullable: true
+          description: |
+            功能类型 (可为null):
+            0-主要功能 (默认), 1-次要功能, 2-可制造性和可装配性功能, 3-可识别功能, 4-便携式功能, 5-可存储功能, 6-可维修功能, 7-可测试功能, 8-可回收利用功能, 9-防止损害功能, 10-自我保护功能
+          enum: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+    DFMEACharacteristicExtra:
+      type: object
+      properties:
+        req_spe:
+          type: string
+          nullable: true
+          description: "要求/规格 (Requirements/Specification 对外显示)"
+        spe_tol:
+          type: string
+          nullable: true
+          description: "规格/公差 (Specification/Tolerance 对内显示)"
+        classification:
+          type: string
+          nullable: true
+          description: "特性分类 (例如: KPC, QCC)"
+          
+    DFMEAFailureExtra:
+      type: object
+      properties:
+        failureType:
+          type: integer
+          description: "失效类型: 0-未分类, 1-功能失效, 2-设计错误"
+          enum: [0, 1, 2]
+        severity:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10
+        occurrence:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10
+
+    DFMEAActionExtra:
+      type: object
+      required:
+        - category
+      properties:
+        category:
+          type: integer
+          description: "措施分类: 1-日常预防控制, 2-日常探测控制"
+          enum: [1, 2]
+        detection:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10
+
+    DFMEAComponentNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [component, system, subsystem]
+            extra:
+              $ref: '#/components/schemas/DFMEAComponentExtra'
+
+    DFMEAFunctionNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [func]
+            extra:
+              $ref: '#/components/schemas/DFMEAFunctionExtra'
+
+    DFMEACharacteristicNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [cha]
+            extra:
+              $ref: '#/components/schemas/DFMEACharacteristicExtra'
+
+    DFMEAFailureNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [failure]
+            extra:
+              $ref: '#/components/schemas/DFMEAFailureExtra'
+
+    DFMEAActionNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [action]
+            extra:
+              $ref: '#/components/schemas/DFMEAActionExtra'
+
+    DFMEAAnalysisNode:
+      oneOf:
+        - $ref: '#/components/schemas/DFMEAComponentNode'
+        - $ref: '#/components/schemas/DFMEAFunctionNode'
+        - $ref: '#/components/schemas/DFMEACharacteristicNode'
+        - $ref: '#/components/schemas/DFMEAFailureNode'
+        - $ref: '#/components/schemas/DFMEAActionNode'
+      discriminator:
+        propertyName: nodeType
+        mapping:
+          system: '#/components/schemas/DFMEAComponentNode'
+          subsystem: '#/components/schemas/DFMEAComponentNode'
+          component: '#/components/schemas/DFMEAComponentNode'
+          func: '#/components/schemas/DFMEAFunctionNode'
+          cha: '#/components/schemas/DFMEACharacteristicNode'
+          failure: '#/components/schemas/DFMEAFailureNode'
+          action: '#/components/schemas/DFMEAActionNode'
+
+    DFMEAInterface:
+      type: object
+      properties:
+        structureId:
+          type: integer
+          description: "聚焦结构ID, 即关联组件的父级ID"
+        startId:
+          type: integer
+          description: "起始组件ID"
+        endId:
+          type: integer
+          description: "终止组件ID"
+        type:
+          type: integer
+          description: "接口类型: 1-物理连接(P), 2-能力传递(E), 3-物理间隙(Pc), 4-物料交换(M), 5-人机交互(H), 6-信息传递(I)"
+          enum: [1, 2, 3, 4, 5, 6]
+        interaction:
+          type: integer
+          description: "相互作用: 0-单向, 1-双向"
+          enum: [0, 1]
+        effect:
+          type: integer
+          description: "接口影响: 0-积极的/有用的, 1-消极的/有害的"
+          enum: [0, 1]
+        description:
+          type: string
+          description: "接口描述"
+        virtualParts:
+          type: string
+          description: "虚拟件, 接口的名称"
+      required: [structureId, startId, endId, type, interaction, effect, description, virtualParts]
+
+    DFMEAAnalysisResponse:
+      type: object
+      properties:
+        baseInfo:
+          $ref: '#/components/schemas/DFMEABaseInfo'
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DFMEAAnalysisNode'
+        featureNet:
+          type: array
+          items:
+            $ref: '#/components/schemas/NetworkLink'
+          nullable: true
+          description: 功能网络连接列表
+        failureNet:
+          type: array
+          items:
+            $ref: '#/components/schemas/NetworkLink'
+          nullable: true
+          description: 失效网络连接列表
+        interface:
+          type: array
+          items:
+            $ref: '#/components/schemas/DFMEAInterface'
+          nullable: true
+          description: 组件间接口列表
+      required: [baseInfo, nodes]
+
+    # --- PFMEA Analysis Schemas ---
+    PFMEABaseInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        partNo:
+          type: string
+        partName:
+          type: string
+        evaluationCriteria:
+          type: string
+          description: "评估准则, 例如：AIAG-4、AIAG-VDA、Dell AQP、SAE 等。默认为 AIAG-VDA"
+      required: [name, partNo, partName, evaluationCriteria]
+
+    ModifiedPFMEAStructure:
+      type: object
+      properties:
+        baseInfo:
+          $ref: '#/components/schemas/PFMEABaseInfo'
+          nullable: true
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PFMEAAnalysisNode'
+      description: 用户调整后的PFMEA结构节点列表及基础信息。
+
+    PFMEAAnalysisRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisRequest'
+        - type: object
+          properties:
+            modifiedStructure:
+              $ref: '#/components/schemas/ModifiedPFMEAStructure'
+              nullable: true
+              description: 在 scope='full_doc' 时，平台回传的用户修改后的PFMEA结构。
+
+    PFMEAStepExtra:
+      type: object
+      properties:
+        keyProcess:
+          type: boolean
+          nullable: true
+          description: "是否关键工序"
+        preSteps:
+          type: array
+          items:
+            type: integer
+          nullable: true
+          description: "上一个步骤的ID数组"
+        category:
+          type: integer
+          default: 1
+          description: "操作分类: 1-加工, 2-搬运, 3-存取, 4-返工, 5-报废/隔离, 11-目视检验, 12-手动检验, 13-自动检验, 14-质量稽核。默认为1"
+          enum: [1, 2, 3, 4, 5, 11, 12, 13, 14]
+          
+    PFMEAStep2Extra:
+      type: object
+      properties:
+        preSteps:
+          type: array
+          items:
+            type: integer
+          nullable: true
+          description: "上一个步骤的ID数组"
+        category:
+          type: integer
+          default: 1
+          description: "操作分类: 1-加工, 2-搬运, 3-存取, 4-返工, 5-报废/隔离, 11-目视检验, 12-手动检验, 13-自动检验, 14-质量稽核。默认为1"
+          enum: [1, 2, 3, 4, 5, 11, 12, 13, 14]
+
+    PFMEAElementExtra:
+      type: object
+      properties:
+        em:
+          type: integer
+          description: "要素类型: 1-人, 2-机器, 3-物料, 4-环境, 5-方法, 6-测量"
+          enum: [1, 2, 3, 4, 5, 6]
+
+    PFMEACharacteristicExtra:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [product, process]
+          description: |
+            特性类型。约束规则:
+            - 若父节点是 'item' (过程项), 此值应为 'product'。
+            - 若父节点是 'elem' (过程工作要素), 此值应为 'process'。
+            - 若父节点是 'step' 或 'step2' (过程步骤), 此值可以是 'product' 或 'process'。
+        req_spe:
+          type: string
+          nullable: true
+          description: "要求/规格 (Requirements/Specification 对外显示)"
+        spe_tol:
+          type: string
+          nullable: true
+          description: "规格/公差 (Specification/Tolerance 对内显示)"
+        classification:
+          type: string
+          nullable: true
+          description: "特性分类 (例如: KPC, QCC)"
+
+    PFMEAEffectExtra:
+      type: object
+      properties:
+        category:
+          type: integer
+          description: "失效分类: 1-厂内, 2-直接发运工厂, 3-最终用户"
+          enum: [1, 2, 3]
+        severity:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10
+
+    PFMEACauseExtra:
+      type: object
+      properties:
+        occurrence:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10
+
+    PFMEAActionExtra:
+      type: object
+      required:
+        - category
+      properties:
+        detection:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 10
+          nullable: true
+        category:
+          type: integer
+          description: "措施分类: 1-日常预防控制, 2-日常探测控制, 3-设计更改"
+          enum: [1, 2, 3]
+
+    PFMEAItemNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [item]
+            extra:
+              $ref: '#/components/schemas/ExtraDataModel'
+
+    PFMEAStepNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [step]
+            extra:
+              $ref: '#/components/schemas/PFMEAStepExtra'
+
+    PFMEAStep2Node:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [step2]
+            extra:
+              $ref: '#/components/schemas/PFMEAStep2Extra'
+
+    PFMEAElementNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [elem]
+            extra:
+              $ref: '#/components/schemas/PFMEAElementExtra'
+
+    PFMEAFunctionNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [func]
+            extra:
+              $ref: '#/components/schemas/ExtraDataModel'
+
+    PFMEACharacteristicNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [cha]
+            extra:
+              $ref: '#/components/schemas/PFMEACharacteristicExtra'
+
+    PFMEAModeNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [mode]
+            extra:
+              $ref: '#/components/schemas/ExtraDataModel'
+
+    PFMEAEffectNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [effect]
+            extra:
+              $ref: '#/components/schemas/PFMEAEffectExtra'
+
+    PFMEACauseNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [cause]
+            extra:
+              $ref: '#/components/schemas/PFMEACauseExtra'
+
+    PFMEAActionNode:
+      allOf:
+        - $ref: '#/components/schemas/BaseAnalysisNode'
+        - type: object
+          properties:
+            nodeType:
+              type: string
+              enum: [action]
+            extra:
+              $ref: '#/components/schemas/PFMEAActionExtra'
+
+    PFMEAAnalysisNode:
+      oneOf:
+        - $ref: '#/components/schemas/PFMEAItemNode'
+        - $ref: '#/components/schemas/PFMEAStepNode'
+        - $ref: '#/components/schemas/PFMEAStep2Node'
+        - $ref: '#/components/schemas/PFMEAElementNode'
+        - $ref: '#/components/schemas/PFMEAFunctionNode'
+        - $ref: '#/components/schemas/PFMEACharacteristicNode'
+        - $ref: '#/components/schemas/PFMEAModeNode'
+        - $ref: '#/components/schemas/PFMEAEffectNode'
+        - $ref: '#/components/schemas/PFMEACauseNode'
+        - $ref: '#/components/schemas/PFMEAActionNode'
+      discriminator:
+        propertyName: nodeType
+        mapping:
+          item: '#/components/schemas/PFMEAItemNode'
+          step: '#/components/schemas/PFMEAStepNode'
+          step2: '#/components/schemas/PFMEAStep2Node'
+          elem: '#/components/schemas/PFMEAElementNode'
+          func: '#/components/schemas/PFMEAFunctionNode'
+          cha: '#/components/schemas/PFMEACharacteristicNode'
+          mode: '#/components/schemas/PFMEAModeNode'
+          effect: '#/components/schemas/PFMEAEffectNode'
+          cause: '#/components/schemas/PFMEACauseNode'
+          action: '#/components/schemas/PFMEAActionNode'
+
+    PFMEAAnalysisResponse:
+      type: object
+      properties:
+        baseInfo:
+          $ref: '#/components/schemas/PFMEABaseInfo'
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PFMEAAnalysisNode'
+        featureNet:
+          type: array
+          items:
+            $ref: '#/components/schemas/NetworkLink'
+          nullable: true
+          description: 功能网络连接列表
+        failureNet:
+          type: array
+          items:
+            $ref: '#/components/schemas/NetworkLink'
+          nullable: true
+          description: 失效网络连接列表
+      required: [baseInfo, nodes]
