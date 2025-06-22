@@ -1,0 +1,98 @@
+# GitHub Copilot Setup Steps for FMEA Visualizer
+# This file provides setup instructions for the FMEA (Failure Mode and Effects Analysis) Visualizer project
+
+name: FMEA Visualizer Setup
+description: |
+  A Next.js application for visualizing FMEA data with AI-powered analysis capabilities.
+  This project includes both a React Flow-based frontend for graph visualization and 
+  an optional Genkit AI backend for intelligent FMEA processing.
+
+prerequisites:
+  - Node.js (version 20 or higher)
+  - npm (comes with Node.js)
+
+setup_steps:
+  - step: "Install dependencies"
+    description: "Install all required npm packages"
+    command: "npm install"
+    
+  - step: "Start the main development server"
+    description: "Run the Next.js frontend application with Turbopack on port 9002"
+    command: "npm run dev"
+    notes: "This starts the main UI and standard Next.js API routes"
+    
+  - step: "Start the AI backend (optional)"
+    description: "Run the Genkit AI server for AI-powered features in a separate terminal"
+    command: "npm run genkit:watch"
+    notes: "Only needed if working with AI features. Usually runs on port 4000"
+    optional: true
+
+development_commands:
+  - command: "npm run dev"
+    description: "Start Next.js development server on port 9002"
+    
+  - command: "npm run genkit:watch"
+    description: "Start Genkit AI development server with hot reload"
+    
+  - command: "npm run genkit:dev"
+    description: "Start Genkit AI development server (without watch mode)"
+    
+  - command: "npm run build"
+    description: "Build the application for production"
+    
+  - command: "npm run start"
+    description: "Start the production server"
+    
+  - command: "npm run lint"
+    description: "Run ESLint to check code quality"
+    
+  - command: "npm run typecheck"
+    description: "Run TypeScript compiler to check types"
+
+ports:
+  - port: 9002
+    description: "Main Next.js application"
+    
+  - port: 4000
+    description: "Genkit AI development UI (when running genkit server)"
+
+key_features:
+  - "FMEA data visualization using React Flow"
+  - "Interactive graph editing and node property management"
+  - "JSON data import for Requirements, DFMEA, and PFMEA"
+  - "AI-powered FMEA analysis using Google's Genkit"
+  - "Rule-based FMEA validation"
+  - "Firebase integration"
+
+environment_setup:
+  - "No additional environment variables required for basic functionality"
+  - "AI features may require Google AI API configuration"
+
+file_structure:
+  - path: "src/app/"
+    description: "Next.js App Router pages and layouts"
+    
+  - path: "src/components/"
+    description: "React components including FMEA visualization components"
+    
+  - path: "src/ai/"
+    description: "Genkit AI flows and configurations"
+    
+  - path: "src/lib/"
+    description: "Utility functions and FMEA rule definitions"
+    
+  - path: "docs/"
+    description: "Project documentation and blueprints"
+
+common_tasks:
+  - task: "View FMEA data"
+    steps:
+      - "Start the dev server with 'npm run dev'"
+      - "Navigate to http://localhost:9002"
+      - "Use the data input panel to paste FMEA JSON data"
+      
+  - task: "Test AI features"
+    steps:
+      - "Start both servers: 'npm run dev' and 'npm run genkit:watch'"
+      - "Navigate to http://localhost:9002 for the main app"
+      - "Navigate to http://localhost:4000 for Genkit development UI"
