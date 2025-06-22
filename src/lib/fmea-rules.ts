@@ -408,7 +408,7 @@ const rules: FmeaRule[] = [
   },
   {
     id: '02-1-1-12',
-    description: '如果响应中存在 `failureNet`，那么 `featureNet` 也应一并返回，反之亦然。',
+    description: '(DFMEA/PFMEA) 如果响应中存在 `failureNet`，那么 `featureNet` 也应一并返回，反之亦然。',
     groupId: 'network',
     check: (data, type) => {
       if (type !== 'dfmea' && type !== 'pfmea') return { status: 'success', details: '该规则仅适用于DFMEA/PFMEA。' };
@@ -565,8 +565,7 @@ const rules: FmeaRule[] = [
       if (pfmeaData.failureNet) {
         const invalidLinks = pfmeaData.failureNet.filter(link => {
           const fromNode = nodeMap.get(link.from.toString());
-          const toNode = nodeMap.get(link.to.toString());
-          return !fromNode || fromNode.nodeType !== 'mode' || !toNode;
+          return !fromNode || fromNode.nodeType !== 'mode';
         });
         if (invalidLinks.length > 0) {
           errors.push(`failureNet 中发现 ${invalidLinks.length} 个连接不源自 'mode' 节点。`);
@@ -599,16 +598,6 @@ const rules: FmeaRule[] = [
       }
       return { status: 'success' };
     },
-  },
-  {
-      id: '03-1-1-08',
-      description: '如果响应中存在 `failureNet`，那么 `featureNet` 也应一并返回，反之亦然。',
-      groupId: 'network',
-      check: (data, type) => {
-        if (type !== 'pfmea') return { status: 'success', details: '该规则仅适用于PFMEA。' };
-        // This logic is identical to rule 02-1-1-12, which already checks for PFMEA
-        return { status: 'info', details: '此规则由 02-1-1-12 覆盖。' };
-      },
   },
   {
     id: '03-1-2-09',
@@ -654,8 +643,9 @@ export function runAllRules(fmeaJson: string, type: ApiResponseType | null): Rul
       groupId: rule.groupId,
     };
   }).filter(item => {
+    // Filter out info statuses that are just informational and not actionable for the user
+    // unless they are about contract stability which is important context.
     if (item.status === 'info') {
-      // Only show specific info rules that are useful for context
       return ['00-1-0-07', '00-1-0-08'].includes(item.id);
     }
     return true;
