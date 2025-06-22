@@ -81,8 +81,20 @@ file_structure:
   - path: "src/lib/"
     description: "Utility functions and FMEA rule definitions"
     
+  - path: "src/lib/fmea-rules.ts"
+    description: "TypeScript implementation of FMEA validation rules and constraints"
+    
   - path: "docs/"
     description: "Project documentation and blueprints"
+    
+  - path: "rules.md"
+    description: "Detailed constraints and rules for FMEA requests and responses with rule IDs and classifications"
+    
+  - path: "spec.yaml"
+    description: "OpenAPI specification for FMEA API requests and responses (if available)"
+    
+  - path: "models_v2.py"
+    description: "Pydantic schema definitions for FMEA requests and responses (if available)"
 
 common_tasks:
   - task: "View FMEA data"
