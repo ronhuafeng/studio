@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import type { ApiResponseType, FmeaApiResponse } from '@/types/fmea';
-import type { RuleGroup, RuleItem, RuleItemStatus } from '@/lib/fmea-rules';
+import type { RuleGroup, RuleItemStatus } from '@/lib/fmea-rules';
 import { runAllRules } from '@/lib/fmea-rules';
 import { parseJsonWithBigInt } from '@/lib/bigint-utils';
 import { CheckCircle, XCircle, AlertTriangle, Info, ChevronDown } from 'lucide-react';
