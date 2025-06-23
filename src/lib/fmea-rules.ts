@@ -158,7 +158,7 @@ const rules: FmeaRule[] = [
       const chaNodesWithChildren = data.nodes.filter(n => n.nodeType === 'cha' && data.nodes.some(child => child.parentId === n.uuid));
       if (chaNodesWithChildren.length > 0) {
         const uuids = chaNodesWithChildren.map(n => n.uuid.toString()).join(', ');
-        return { status: 'error', details: `${chaNodesWithChildren.length} 个 'cha' 节点不应有子节点。违规 cha 节点 UUID: ${uuids}` };
+        return { status: 'error', details: `发现 ${chaNodesWithChildren.length} 个 'cha' 节点拥有子节点。违规 cha 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -299,7 +299,7 @@ const rules: FmeaRule[] = [
       });
       if (invalidFuncs.length > 0) {
         const uuids = invalidFuncs.map(n => n.uuid.toString()).join(', ');
-        return { status: 'error', details: `${invalidFuncs.length} 个 func 节点的父节点类型错误。违规 func 节点 UUID: ${uuids}` };
+        return { status: 'error', details: `发现 ${invalidFuncs.length} 个 func 节点的父节点类型错误。违规 func 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -319,7 +319,7 @@ const rules: FmeaRule[] = [
       });
       if (invalidChas.length > 0) {
         const uuids = invalidChas.map(n => n.uuid.toString()).join(', ');
-        return { status: 'error', details: `${invalidChas.length} 个 cha 节点的父节点类型不为 'func'。违规 cha 节点 UUID: ${uuids}` };
+        return { status: 'error', details: `发现 ${invalidChas.length} 个 cha 节点的父节点类型不为 'func'。违规 cha 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -339,7 +339,7 @@ const rules: FmeaRule[] = [
       });
       if (invalidFailures.length > 0) {
         const uuids = invalidFailures.map(n => n.uuid.toString()).join(', ');
-        return { status: 'error', details: `${invalidFailures.length} 个 failure 节点的父节点类型错误。违规 failure 节点 UUID: ${uuids}` };
+        return { status: 'error', details: `发现 ${invalidFailures.length} 个 failure 节点的父节点类型错误。违规 failure 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -359,7 +359,26 @@ const rules: FmeaRule[] = [
       });
       if (invalidActions.length > 0) {
         const uuids = invalidActions.map(n => n.uuid.toString()).join(', ');
-        return { status: 'error', details: `${invalidActions.length} 个 action 节点的 detection 字段与 category 不匹配。违规 action 节点 UUID: ${uuids}` };
+        return { status: 'error', details: `发现 ${invalidActions.length} 个 action 节点的 detection 字段与 category 不匹配。违规 action 节点 UUID: ${uuids}` };
+      }
+      return { status: 'success' };
+    },
+  },
+  {
+    id: '02-1-1-14',
+    description: 'DFMEA 的 Action 的 Extra 的 category 只能是 1 或者 2。',
+    groupId: 'completeness',
+    check: (data, type) => {
+      if (type !== 'dfmea') return { status: 'success', details: '该规则仅适用于DFMEA。' };
+      if (!data.nodes) return { status: 'info', details: '无节点可供检查。' };
+      const actions = data.nodes.filter(n => n.nodeType === 'action');
+      const invalidActions = actions.filter(n => {
+        const category = n.extra?.category;
+        return category !== 1 && category !== 2;
+      });
+      if (invalidActions.length > 0) {
+        const uuids = invalidActions.map(n => n.uuid.toString()).join(', ');
+        return { status: 'error', details: `发现 ${invalidActions.length} 个 action 节点的 category 值无效 (必须是 1 或 2)。违规 action 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -579,7 +598,7 @@ const rules: FmeaRule[] = [
       });
       if (invalidFuncs.length > 0) {
         const uuids = invalidFuncs.map(n => n.uuid.toString()).join(', ');
-        return { status: 'error', details: `${invalidFuncs.length} 个 func 节点的父节点类型错误。违规 func 节点 UUID: ${uuids}` };
+        return { status: 'error', details: `发现 ${invalidFuncs.length} 个 func 节点的父节点类型错误。违规 func 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
@@ -600,7 +619,7 @@ const rules: FmeaRule[] = [
       });
       if (invalidActions.length > 0) {
         const uuids = invalidActions.map(n => n.uuid.toString()).join(', ');
-        return { status: 'error', details: `${invalidActions.length} 个 action 节点的 detection 字段与 category 不匹配。违规 action 节点 UUID: ${uuids}` };
+        return { status: 'error', details: `发现 ${invalidActions.length} 个 action 节点的 detection 字段与 category 不匹配。违规 action 节点 UUID: ${uuids}` };
       }
       return { status: 'success' };
     },
