@@ -79,7 +79,7 @@ export function CustomGraphNode({ data, selected, sourcePosition = Position.Righ
               <h5 className="text-[11px] font-medium text-muted-foreground mb-1">Extra Properties:</h5>
               {extraProperties.map(([key, value]) => (
                 <div key={key} className="text-[10px] text-foreground/70 truncate">
-                  <span className="font-medium">{key}:</span> {isBigInt(value) ? formatBigIntForDisplay(value) : String(value)}
+                  <span className="font-medium">{key}:</span> {isBigInt(value) ? formatBigIntForDisplay(value) : (typeof value === 'object' && value !== null) ? JSON.stringify(value) : String(value)}
                 </div>
               ))}
             </div>
