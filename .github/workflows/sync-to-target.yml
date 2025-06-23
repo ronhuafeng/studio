@@ -1,11 +1,10 @@
-name: Sync main branch to another repo
+name: Sync branch to another repo
 
 on:
   push:
-    # Only run this workflow when the 'main' branch is pushed
-    branches: [ main ] 
+    branches:
+      - '**'
   
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
@@ -23,21 +22,19 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.REPO_SYNC_KEY }}
 
-      - name: Push main branch and tags if author is authorized
+      - name: Push branch to destination if author is authorized
         env:
-          # Safely expose the secret as an environment variable
+          # Safely expose secrets as environment variables
           AUTHORIZED_EMAIL: ${{ secrets.EMAIL }}
           DESTINATION_REPO: ${{ secrets.TARGET_REPO }}
         run: |
-          # Use a shell 'if' to check the condition
           if [[ "${{ github.event_name }}" == "workflow_dispatch" || "${{ github.event.head_commit.author.email }}" == "${AUTHORIZED_EMAIL}" ]]; then
-            echo "✅ Condition met. Pushing main branch and tags to destination."
+            BRANCH_NAME="${{ github.ref_name }}"
 
-            # 1. Force push the main branch. This overwrites the destination 'main'
-            #    but does NOT touch any other branches.
-            git push ${DESTINATION_REPO} main:main
+            echo "✅ Authorization check passed. Pushing branch '${BRANCH_NAME}' to destination."
+            git push "${DESTINATION_REPO}" "${BRANCH_NAME}:${BRANCH_NAME}"
 
             echo "Sync complete."
           else
-            echo "❌ Author email does not match. Skipping sync."
+            echo "❌ Push author email ('${{ github.event.head_commit.author.email }}') does not match the authorized email. Skipping sync."
           fi
